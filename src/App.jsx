@@ -542,11 +542,17 @@ function ImportView({ events, onSuccess }) {
 
     setIsAnalyzing(true);
     setError('');
-    setAnalyzeStatus('スケジュールを解析中...');
-    
+
+    const extractedUrls = [...new Set((text.match(/(https?:\/\/[^\s）)]+)/g) || []))];
+    setAnalyzeStatus(extractedUrls.length > 0 ? `URLを読み込み中... (${extractedUrls.length}件)` : 'スケジュールを解析中...');
+
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+      const urlNote = extractedUrls.length > 0
+        ? `\n\n【URLの参照】\nテキスト内に以下のURLが含まれています。各URLにアクセスして、会場・日時・集合場所などの情報があればそれも解析に反映してください。\n${extractedUrls.join('\n')}`
+        : '';
+
       const prompt = `
 あなたはプロのジュニアサッカーチームの事務局員です。LINEの予定連絡を解析して、カレンダー登録用のJSONデータを作成してください。
 
@@ -566,16 +572,21 @@ JSON配列で出力してください：
 [ { "type": "練習"|"試合"|"その他", "title": "文字列", "date": "YYYY-MM-DD", "gatherTime": "HH:mm", "startTime": "HH:mm", "endTime": "HH:mm", "location": "文字列", "memo": "文字列" } ]
 
 解析対象テキスト：
-${text}
+${text}${urlNote}
       `;
 
-      const res = await fetch(url, {
+      const requestBody = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+      if (extractedUrls.length > 0) {
+        requestBody.tools = [{ url_context: {} }];
+      }
+
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (!res.ok) {
