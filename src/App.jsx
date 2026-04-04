@@ -818,6 +818,61 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   );
 }
 
+function LocationField({ event }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(event.location || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => { setValue(event.location || ''); }, [event.location]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), {
+        location: value,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      setIsEditing(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2 animate-in fade-in">
+        <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+        <input
+          type="text"
+          autoFocus
+          className="flex-1 border border-emerald-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setIsEditing(false); }}
+          placeholder="場所を入力..."
+        />
+        <button onClick={() => setIsEditing(false)} className="text-[10px] text-gray-400 hover:text-gray-600 px-1">キャンセル</button>
+        <button onClick={handleSave} disabled={isSaving} className="text-[10px] text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded flex items-center gap-1">
+          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}保存
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setIsEditing(true)}
+      className={`w-full text-left text-xs flex items-start gap-2 p-3 rounded-xl transition-colors group ${event.location ? 'bg-emerald-50 hover:bg-emerald-100' : 'bg-gray-50 hover:bg-gray-100 border border-dashed border-gray-200'}`}
+    >
+      <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${event.location ? 'text-emerald-600' : 'text-gray-300'}`} />
+      <span className={event.location ? 'text-gray-700' : 'text-gray-400 italic'}>{event.location || '場所を追加...'}</span>
+      <Edit3 className="w-3 h-3 text-gray-300 group-hover:text-gray-400 ml-auto shrink-0 mt-0.5 transition-colors" />
+    </button>
+  );
+}
+
 function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile, onClose }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -975,7 +1030,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
               <div className="bg-gray-50 p-2 rounded-lg flex items-center gap-2"><Clock className="w-4 h-4 text-gray-400" />{event.startTime || '未定'} 〜 {event.endTime || ''}</div>
               {event.gatherTime && <div className="bg-gray-50 p-2 rounded-lg flex items-center gap-2"><Users className="w-4 h-4" />集合: {event.gatherTime}</div>}
             </div>
-            {event.location && <div className="text-xs flex items-start gap-2 bg-emerald-50 p-3 rounded-xl"><MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{event.location}</div>}
+            <LocationField event={event} />
             {event.memo && <div className="text-xs text-gray-600 leading-relaxed pt-2 border-t border-gray-50"><LinkedText text={event.memo} /></div>}
           </>
         )}
