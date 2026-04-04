@@ -233,7 +233,7 @@ export default function App() {
     <div className="max-w-[480px] mx-auto bg-gray-50 min-h-screen relative shadow-2xl flex flex-col font-sans text-gray-900">
       <header className="bg-emerald-600 text-white px-4 py-4 sticky top-0 z-20 shadow-md flex justify-between items-center">
         <div>
-          <h1 className="font-bold text-lg tracking-wider">SOCCER CLUB MGR</h1>
+          <h1 className="font-black text-lg tracking-wider">SOCCER CLUB MGR</h1>
           <p className="text-[10px] text-emerald-100 flex items-center gap-1 mt-0.5">
             <Users className="w-3 h-3" />
             予定共有カレンダー
