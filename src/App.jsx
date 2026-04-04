@@ -575,11 +575,13 @@ JSON配列で出力してください：
 ${text}${urlNote}
       `;
 
+      const hasUrls = extractedUrls.length > 0;
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        // url_context使用時はresponseMimeTypeを指定できないためURL有無で分岐
+        generationConfig: hasUrls ? {} : { responseMimeType: "application/json" }
       };
-      if (extractedUrls.length > 0) {
+      if (hasUrls) {
         requestBody.tools = [{ url_context: {} }];
       }
 
@@ -588,15 +590,18 @@ ${text}${urlNote}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error?.message || "AI通信エラーが発生しました");
       }
 
       const response = await res.json();
-      const jsonText = response.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+      const rawText = response.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || '';
+      // URLコンテキスト使用時はMarkdownコードブロックで返ることがあるためJSONを抽出
+      const jsonMatch = rawText.match(/```json\s*([\s\S]*?)```/) || rawText.match(/(\[[\s\S]*\])/);
+      const jsonText = jsonMatch ? jsonMatch[1] : rawText;
+
       if (jsonText) {
         let parsed = JSON.parse(jsonText);
         if (!Array.isArray(parsed)) parsed = [parsed];
