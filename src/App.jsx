@@ -236,7 +236,7 @@ export default function App() {
           <h1 className="font-black text-lg tracking-wider">SOCCER CLUB MGR</h1>
           <p className="text-[10px] text-emerald-100 flex items-center gap-1 mt-0.5">
             <Users className="w-3 h-3" />
-            予定共有カレンダー
+            試験運用中
           </p>
         </div>
         <button 
