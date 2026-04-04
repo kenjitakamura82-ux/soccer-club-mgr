@@ -884,7 +884,6 @@ function LocationField({ event }) {
     >
       <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${event.location ? 'text-emerald-600' : 'text-gray-300'}`} />
       <span className={event.location ? 'text-gray-700' : 'text-gray-400 italic'}>{event.location || '場所を追加...'}</span>
-      <Edit3 className="w-3 h-3 text-gray-300 group-hover:text-gray-400 ml-auto shrink-0 mt-0.5 transition-colors" />
     </button>
   );
 }
