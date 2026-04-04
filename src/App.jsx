@@ -567,6 +567,12 @@ function ImportView({ events, onSuccess }) {
 2. "試合"：「試合」「大会」「TM」「遠征」などはすべてこれに統一します。
 3. "その他"：「保護者会」「イベント」「飲み会」などはこれに統一します。
 
+【URLの扱い】
+テキスト内にURLが含まれる場合は、以下のルールに従ってください。
+・URLが参照先（調整さん・Googleフォーム等）として記載されている場合、そのURLをその予定のmemoフィールドの末尾に改行して含めてください。
+・URLから会場・日時などの情報が取得できた場合はlocationやtimeに反映し、URLはmemoに残してください。
+・URLが複数ある場合はすべてmemoに含めてください。
+
 【出力形式】
 JSON配列で出力してください：
 [ { "type": "練習"|"試合"|"その他", "title": "文字列", "date": "YYYY-MM-DD", "gatherTime": "HH:mm", "startTime": "HH:mm", "endTime": "HH:mm", "location": "文字列", "memo": "文字列" } ]
