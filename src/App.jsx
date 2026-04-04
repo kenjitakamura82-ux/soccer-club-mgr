@@ -3,10 +3,10 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, deleteDoc } from 'firebase/firestore';
 import { 
-  Calendar, Download, ChevronRight, MapPin, Clock, Users, Car, CheckCircle2, 
-  AlertCircle, X, Copy, Info, Loader2, Wifi, WifiOff, Trash2, ArrowRight, 
+  Calendar, Download, ChevronRight, MapPin, Clock, Users, Car, CheckCircle2,
+  AlertCircle, X, Copy, Info, Loader2, Wifi, WifiOff, Trash2, ArrowRight,
   Edit3, Save, ExternalLink, Paperclip, FileText, Image as ImageIcon, Link as LinkIcon, Plus, UserCircle, Hash,
-  UserPlus, Settings, RefreshCw, Sparkles
+  UserPlus, Settings, RefreshCw
 } from 'lucide-react';
 
 // ==========================================
@@ -241,7 +241,7 @@ export default function App() {
         </div>
         <button 
           onClick={() => setShowProfileSetup(true)}
-          className="flex items-center gap-2 bg-emerald-700/50 hover:bg-emerald-700 px-3 py-1.5 rounded-full text-xs transition-colors"
+          className="flex items-center gap-2 bg-emerald-700/50 hover:bg-emerald-700 px-3 py-1.5 rounded-md text-xs transition-colors"
         >
           <UserCircle className="w-4 h-4 text-emerald-200" />
           <span className="font-medium truncate max-w-[80px]">
@@ -350,7 +350,7 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-white w-full max-w-sm rounded-xl shadow-xl overflow-hidden">
         <div className="px-4 py-4 flex items-center justify-between border-b bg-gray-50">
           <h3 className="font-bold text-gray-800">プロフィールの設定</h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -359,20 +359,20 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
           <p className="text-xs text-gray-500 mb-4">出欠や配車に回答するためには、以下の情報を設定してください。</p>
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-1">保護者のお名前</label>
-            <input type="text" placeholder="例：高村健二" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={parentName} onChange={e => setParentName(e.target.value)} />
+            <input type="text" placeholder="例：高村健二" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={parentName} onChange={e => setParentName(e.target.value)} />
           </div>
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-1">お子様の氏名（漢字）</label>
-            <input type="text" placeholder="例：高村悠太" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={childName} onChange={e => setChildName(e.target.value)} />
+            <input type="text" placeholder="例：高村悠太" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={childName} onChange={e => setChildName(e.target.value)} />
           </div>
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-1">背番号</label>
-            <input type="text" inputMode="numeric" placeholder="例：10" className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={jerseyNumber} onChange={e => setJerseyNumber(e.target.value)} />
+            <input type="text" inputMode="numeric" placeholder="例：10" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={jerseyNumber} onChange={e => setJerseyNumber(e.target.value)} />
           </div>
           <button 
             onClick={handleSave}
             disabled={!parentName || !childName || !jerseyNumber || isSaving}
-            className={`w-full py-3.5 mt-2 rounded-xl font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
+            className={`w-full py-3.5 mt-2 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
               ${!parentName || !childName || !jerseyNumber || isSaving ? 'bg-gray-300' : 'bg-emerald-600 active:bg-emerald-700'}
             `}
           >
@@ -542,7 +542,7 @@ function ImportView({ events, onSuccess }) {
 
     setIsAnalyzing(true);
     setError('');
-    setAnalyzeStatus('AIでスケジュールを解析中...');
+    setAnalyzeStatus('スケジュールを解析中...');
     
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -695,14 +695,14 @@ ${text}
             LINEの予定連絡をまるごとコピーして貼り付けてください。AIが日付・時間・場所を自動で判別します。<br/>
             <span className="font-bold text-emerald-600 mt-1 block">💡 既存の予定と同じ日付の場合は、自動で「更新」されます。</span>
           </p>
-          <textarea className="w-full h-64 p-4 border rounded-2xl text-base outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner bg-white font-sans" placeholder="ここにLINEメッセージを貼り付け..." value={text} onChange={e => setText(e.target.value)} />
-          {error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" /> <span className="break-all">{String(error)}</span></div>}
-          <button onClick={handleAnalyze} disabled={!text.trim() || isAnalyzing} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+          <textarea className="w-full h-64 p-4 border rounded-xl text-base outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner bg-white font-sans" placeholder="ここにLINEメッセージを貼り付け..." value={text} onChange={e => setText(e.target.value)} />
+          {error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" /> <span className="break-all">{String(error)}</span></div>}
+          <button onClick={handleAnalyze} disabled={!text.trim() || isAnalyzing} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
             {isAnalyzing ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="animate-spin w-5 h-5" /> {analyzeStatus}
               </span>
-            ) : 'AIで解析を開始'}
+            ) : '解析を開始'}
           </button>
         </div>
         
@@ -750,7 +750,7 @@ ${text}
                   </div>
                 ) : (
                   <div className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">
-                    <Sparkles className="w-3 h-3" /> 新規追加
+                    <Plus className="w-3 h-3" /> 新規追加
                   </div>
                 )}
               </div>
@@ -915,7 +915,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 
   return (
     <div className="space-y-6 pb-20">
-      <div className={`bg-white rounded-2xl p-5 shadow-sm border space-y-4 ${isCanceled ? 'bg-gray-50 border-gray-200' : 'border-gray-100'}`}>
+      <div className={`bg-white rounded-xl p-5 shadow-sm border space-y-4 ${isCanceled ? 'bg-gray-50 border-gray-200' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between pb-2 border-b border-gray-50">
           <div className="font-bold text-gray-800 flex items-center gap-2"><Calendar className="w-4 h-4 text-emerald-600" />{formatEventDate(event.date, event.endDate)}</div>
           {isEditingEvent ? (
@@ -982,7 +982,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
       </div>
 
       {!isCanceled && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-800 flex items-center gap-2">
               <Paperclip className="w-4 h-4 text-emerald-600" />
@@ -1024,7 +1024,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
       )}
 
       {!isCanceled && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-gray-800">家族の出欠回答</h3>
             {familyAttendance.responderName && <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border">更新: {familyAttendance.responderName}</span>}
@@ -1050,7 +1050,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 function TabTransport({ event, profile, rides, attendances, onRequireProfile }) {
   if (!profile) {
     return (
-      <div className="p-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed m-4">
+      <div className="p-8 text-center bg-gray-50 rounded-xl border-2 border-dashed m-4">
         <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-gray-500 text-sm font-bold mb-2">送迎の調整機能です</p>
         <p className="text-gray-400 text-xs mb-4">利用するにはプロフィールの設定が必要です</p>
@@ -1093,7 +1093,7 @@ function TabTransport({ event, profile, rides, attendances, onRequireProfile }) 
     } catch (e) { console.error(e); } finally { setIsSaving(false); }
   };
 
-  if (!isAttending) return <div className="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-2xl border-2 border-dashed m-4 italic">「参加」の場合のみ回答可能です</div>;
+  if (!isAttending) return <div className="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border-2 border-dashed m-4 italic">「参加」の場合のみ回答可能です</div>;
 
   return (
     <div className="space-y-6 pb-20">
@@ -1105,7 +1105,7 @@ function TabTransport({ event, profile, rides, attendances, onRequireProfile }) 
       </div>
       
       {role === 'driver' && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5 shadow-sm animate-in fade-in">
+        <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-5 shadow-sm animate-in fade-in">
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-2">相乗り可能人数（選手数）</label>
             <select className="w-full border border-gray-200 rounded-xl p-3 text-base bg-gray-50 outline-none" value={capacity} onChange={e => setCapacity(Number(e.target.value))}>
@@ -1123,7 +1123,7 @@ function TabTransport({ event, profile, rides, attendances, onRequireProfile }) 
       )}
 
       {role === 'rider' && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5 shadow-sm animate-in fade-in">
+        <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-5 shadow-sm animate-in fade-in">
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-2">希望人数</label>
             <select className="w-full border border-gray-200 rounded-xl p-3 text-base bg-gray-50 outline-none" value={riderCount} onChange={e => setRiderCount(Number(e.target.value))}>
@@ -1153,7 +1153,7 @@ function TabTransport({ event, profile, rides, attendances, onRequireProfile }) 
 
 function RoleCard({ selected, onClick, icon, title, desc }) {
   return (
-    <button onClick={onClick} className={`text-left p-4 rounded-2xl border-2 transition-all flex items-start gap-4 ${selected ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-100 bg-white'}`}>
+    <button onClick={onClick} className={`text-left p-4 rounded-xl border-2 transition-all flex items-start gap-4 ${selected ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-100 bg-white'}`}>
       <div className={`p-3 rounded-xl ${selected ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{icon}</div>
       <div className="flex-1"><h4 className={`font-bold ${selected ? 'text-emerald-900' : 'text-gray-800'}`}>{title}</h4><p className="text-[10px] text-gray-500 mt-1 leading-tight">{desc}</p></div>
     </button>
@@ -1211,12 +1211,12 @@ function TabMatching({ event, rides, attendances, allStudents }) {
   return (
     <div className="space-y-6 pb-20">
       <div className="grid grid-cols-2 gap-3 text-center">
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">提供可能座席</p><p className="text-2xl font-black text-emerald-600">{matchResult.drivers.reduce((a, d) => a + d.capacity, 0)}</p></div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">未マッチ人数</p><p className={`text-2xl font-black ${matchResult.unmatched.length > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{matchResult.unmatched.length}</p></div>
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"><p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">提供可能座席</p><p className="text-2xl font-black text-emerald-600">{matchResult.drivers.reduce((a, d) => a + d.capacity, 0)}</p></div>
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"><p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">未マッチ人数</p><p className={`text-2xl font-black ${matchResult.unmatched.length > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{matchResult.unmatched.length}</p></div>
       </div>
       <div className="space-y-3">
         {matchResult.drivers.map((d, i) => (
-          <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm border-l-4 border-l-emerald-500">
+          <div key={i} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm border-l-4 border-l-emerald-500">
             <div className="flex justify-between items-center mb-3 font-bold text-sm text-gray-800">
               <div className="flex items-center gap-2"><Car className="w-4 h-4 text-emerald-600" />{d.name} 車</div>
               <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-100">空き: {d.remain}</span>
@@ -1227,7 +1227,7 @@ function TabMatching({ event, rides, attendances, allStudents }) {
           </div>
         ))}
         {matchResult.unmatched.length > 0 && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 shadow-sm border-l-4 border-l-red-500">
+          <div className="bg-red-50 border border-red-100 rounded-xl p-4 shadow-sm border-l-4 border-l-red-500">
             <h4 className="text-xs font-bold text-red-600 mb-2">未マッチ（座席調整が必要）</h4>
             <div className="text-[11px] text-red-500">{matchResult.unmatched.map(r => r.name).join('、')}</div>
           </div>
