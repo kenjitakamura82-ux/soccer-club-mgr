@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { 
   Calendar, Download, ChevronRight, MapPin, Clock, Users, Car, CheckCircle2,
   AlertCircle, X, Copy, Info, Loader2, Wifi, WifiOff, Trash2, ArrowRight,
@@ -30,6 +31,7 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // 環境によるパスエラーを防ぐ処理
 let rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'soccer-club-mgr-app';
@@ -902,9 +904,8 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
   const [status, setStatus] = useState(familyAttendance.status || '');
   const [comment, setComment] = useState(familyAttendance.comment || '');
 
-  const [isAddingFile, setIsAddingFile] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [fileUrl, setFileUrl] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const fileInputRef = useRef(null);
 
   const [editData, setEditData] = useState({
     gatherTime: event.gatherTime || '',
@@ -957,19 +958,36 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     } catch (e) { console.error(e); } finally { setIsSaving(false); }
   };
 
-  const handleAddFile = async () => {
-    if (!fileName || !fileUrl) return;
-    const newAttachments = [...(event.attachments || []), { name: fileName, url: fileUrl }];
-    try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
-      setFileName(''); setFileUrl(''); setIsAddingFile(false);
-    } catch (e) { console.error(e); }
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const path = `artifacts/${appId}/events/${event.id}/${Date.now()}_${file.name}`;
+    const fileRef = storageRef(storage, path);
+    const task = uploadBytesResumable(fileRef, file);
+
+    setUploadProgress(0);
+    task.on('state_changed',
+      (snap) => setUploadProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      (err) => { console.error(err); setUploadProgress(null); alert('アップロードに失敗しました'); },
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref);
+        const newAttachments = [...(event.attachments || []), { name: file.name, url, storagePath: path }];
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+        setUploadProgress(null);
+      }
+    );
   };
 
   const handleDeleteFile = async (idx) => {
+    const target = event.attachments[idx];
     const newAttachments = event.attachments.filter((_, i) => i !== idx);
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+      if (target.storagePath) {
+        await deleteObject(storageRef(storage, target.storagePath)).catch(() => {});
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -1064,16 +1082,23 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
               <Paperclip className="w-4 h-4 text-emerald-600" />
               添付資料・リンク
             </h3>
-            <button onClick={() => setIsAddingFile(!isAddingFile)} className="text-emerald-600 font-bold text-xs flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded">
-              {isAddingFile ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-              {isAddingFile ? '中止' : '追加'}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadProgress !== null}
+              className="text-emerald-600 font-bold text-xs flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded disabled:opacity-50"
+            >
+              <Plus className="w-3.5 h-3.5" />追加
             </button>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
           </div>
-          {isAddingFile && (
-            <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2 border border-emerald-100">
-              <input type="text" placeholder="名前 (例：大会要項PDF、会場地図)" className="w-full p-3 text-base border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" value={fileName} onChange={e => setFileName(e.target.value)} />
-              <input type="url" placeholder="URL (Googleドライブ、画像リンク等)" className="w-full p-3 text-base border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" value={fileUrl} onChange={e => setFileUrl(e.target.value)} />
-              <button onClick={handleAddFile} className="w-full py-3 bg-emerald-600 text-white text-sm font-bold rounded-lg shadow-md">資料を追加する</button>
+          {uploadProgress !== null && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                <span>アップロード中...</span><span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+              </div>
             </div>
           )}
           <div className="space-y-2">
