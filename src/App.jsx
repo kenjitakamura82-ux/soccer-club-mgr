@@ -438,7 +438,7 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
             const ride = profile ? rides?.find(r => r.eventId === event.id && r.studentId === profile.studentId) : null;
             const dateObj = new Date(event.date);
             const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
-            const hasAttachments = event.attachments && event.attachments.length > 0;
+            const hasAttachments = event.hasAttachments;
             
             // 週区切りの計算
             const currentWeekKey = getWeekKey(event.date);
@@ -947,6 +947,16 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     });
   }, [event]);
 
+  const [attachments, setAttachments] = useState([]);
+  useEffect(() => {
+    const ref = collection(db, 'artifacts', appId, 'public', 'data', 'events', event.id, 'attachments');
+    return onSnapshot(ref, snap => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      setAttachments(list);
+    });
+  }, [event.id]);
+
   const handleSaveEventDetails = async () => {
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), {
@@ -999,8 +1009,11 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
         url = await readAsDataUrl(file);
       }
       setUploadProgress(80);
-      const newAttachments = [...(event.attachments || []), { name: file.name, url }];
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+      const attId = crypto.randomUUID();
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id, 'attachments', attId), {
+        name: file.name, url, createdAt: new Date().toISOString()
+      });
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { hasAttachments: true }, { merge: true });
       setUploadProgress(100);
       setTimeout(() => setUploadProgress(null), 400);
     } catch (err) {
@@ -1010,10 +1023,13 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     }
   };
 
-  const handleDeleteFile = async (idx) => {
-    const newAttachments = event.attachments.filter((_, i) => i !== idx);
+  const handleDeleteFile = async (attId) => {
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id, 'attachments', attId));
+      const remaining = attachments.filter(a => a.id !== attId);
+      if (remaining.length === 0) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { hasAttachments: false }, { merge: true });
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -1128,21 +1144,20 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
             </div>
           )}
           <div className="space-y-2">
-            {!event.attachments || event.attachments.length === 0 ? (
+            {attachments.length === 0 ? (
               <div className="text-[10px] text-gray-400 text-center py-6 bg-gray-50 rounded-xl border border-dashed italic">登録された資料はありません</div>
             ) : (
-              event.attachments.map((file, i) => (
-                <div key={i} className="group relative">
+              attachments.map((file) => (
+                <div key={file.id} className="group relative">
                   <a href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 transition-all shadow-sm">
                     <div className="p-2 bg-emerald-50 rounded-full text-emerald-600"><FileText className="w-4 h-4" /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-800 truncate">{file.name}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{file.url}</p>
                     </div>
                     <ExternalLink className="w-4 h-4 text-gray-300" />
                   </a>
-                  {file.url?.match(/\.(jpeg|jpg|gif|png)$/i) && <div className="mt-2 rounded-xl overflow-hidden border border-gray-100"><img src={file.url} alt={file.name} className="w-full h-32 object-cover" /></div>}
-                  <button onClick={() => handleDeleteFile(i)} className="absolute -top-1 -right-1 p-1 bg-white text-red-400 border border-red-100 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3" /></button>
+                  {file.url?.startsWith('data:image') && <div className="mt-2 rounded-xl overflow-hidden border border-gray-100"><img src={file.url} alt={file.name} className="w-full h-32 object-cover" /></div>}
+                  <button onClick={() => handleDeleteFile(file.id)} className="absolute -top-1 -right-1 p-1 bg-white text-red-400 border border-red-100 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3" /></button>
                 </div>
               ))
             )}
