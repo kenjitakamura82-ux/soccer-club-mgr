@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { 
   Calendar, Download, ChevronRight, MapPin, Clock, Users, Car, CheckCircle2,
   AlertCircle, X, Copy, Info, Loader2, Wifi, WifiOff, Trash2, ArrowRight,
@@ -31,7 +30,7 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+
 
 // 環境によるパスエラーを防ぐ処理
 let rawAppId = typeof __app_id !== 'undefined' ? String(__app_id) : 'soccer-club-mgr-app';
@@ -842,6 +841,29 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   );
 }
 
+const compressImage = (file, maxWidth, quality) => new Promise((resolve, reject) => {
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(objectUrl);
+    let w = img.width, h = img.height;
+    if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    resolve(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.onerror = reject;
+  img.src = objectUrl;
+});
+
+const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
 function LocationField({ event }) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(event.location || '');
@@ -963,37 +985,35 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     if (!file) return;
     e.target.value = '';
 
-    const path = `artifacts/${appId}/events/${event.id}/${Date.now()}_${file.name}`;
-    const fileRef = storageRef(storage, path);
-    const task = uploadBytesResumable(fileRef, file);
+    if (file.size > 5 * 1024 * 1024) {
+      alert('5MB以下のファイルを選択してください');
+      return;
+    }
 
-    setUploadProgress(0);
-    task.on('state_changed',
-      (snap) => setUploadProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      (err) => { console.error('upload error:', err); setUploadProgress(null); alert(`アップロードに失敗しました\n${err.code}`); },
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          const newAttachments = [...(event.attachments || []), { name: file.name, url, storagePath: path }];
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
-        } catch (err) {
-          console.error('post-upload error:', err);
-          alert(`保存に失敗しました\n${err.message}`);
-        } finally {
-          setUploadProgress(null);
-        }
+    setUploadProgress(10);
+    try {
+      let url;
+      if (file.type.startsWith('image/')) {
+        url = await compressImage(file, 1200, 0.82);
+      } else {
+        url = await readAsDataUrl(file);
       }
-    );
+      setUploadProgress(80);
+      const newAttachments = [...(event.attachments || []), { name: file.name, url }];
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(null), 400);
+    } catch (err) {
+      console.error(err);
+      alert(`保存に失敗しました\n${err.message}`);
+      setUploadProgress(null);
+    }
   };
 
   const handleDeleteFile = async (idx) => {
-    const target = event.attachments[idx];
     const newAttachments = event.attachments.filter((_, i) => i !== idx);
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
-      if (target.storagePath) {
-        await deleteObject(storageRef(storage, target.storagePath)).catch(() => {});
-      }
     } catch (e) { console.error(e); }
   };
 
