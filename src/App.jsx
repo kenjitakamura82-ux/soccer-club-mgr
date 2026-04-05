@@ -841,24 +841,32 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   );
 }
 
-const compressImage = (file, maxWidth) => new Promise((resolve, reject) => {
+const compressImage = (file) => new Promise((resolve, reject) => {
   const img = new Image();
   const objectUrl = URL.createObjectURL(file);
   img.onload = () => {
     URL.revokeObjectURL(objectUrl);
-    let w = img.width, h = img.height;
-    if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    // 900KB未満になるまで品質を下げる
-    let quality = 0.82;
-    let dataUrl;
-    do {
-      dataUrl = canvas.toDataURL('image/jpeg', quality);
-      quality = Math.round((quality - 0.1) * 10) / 10;
-    } while (dataUrl.length > 900000 && quality >= 0.1);
-    resolve(dataUrl);
+    const LIMIT = 800000;
+
+    const tryCompress = (maxW) => {
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      for (let q = 0.8; q >= 0.1; q = Math.round((q - 0.1) * 10) / 10) {
+        const dataUrl = canvas.toDataURL('image/jpeg', q);
+        if (dataUrl.length <= LIMIT) return dataUrl;
+      }
+      return null;
+    };
+
+    for (const maxW of [1200, 800, 500, 300]) {
+      const result = tryCompress(maxW);
+      if (result) { resolve(result); return; }
+    }
+    // 最終手段: 300px・最低品質
+    resolve(tryCompress(300) || tryCompress(150));
   };
   img.onerror = reject;
   img.src = objectUrl;
@@ -1011,7 +1019,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     try {
       let url;
       if (file.type.startsWith('image/')) {
-        url = await compressImage(file, 1200);
+        url = await compressImage(file);
       } else {
         url = await readAsDataUrl(file);
       }
