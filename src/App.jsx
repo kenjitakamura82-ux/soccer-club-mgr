@@ -970,12 +970,18 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     setUploadProgress(0);
     task.on('state_changed',
       (snap) => setUploadProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      (err) => { console.error(err); setUploadProgress(null); alert('アップロードに失敗しました'); },
+      (err) => { console.error('upload error:', err); setUploadProgress(null); alert(`アップロードに失敗しました\n${err.code}`); },
       async () => {
-        const url = await getDownloadURL(task.snapshot.ref);
-        const newAttachments = [...(event.attachments || []), { name: file.name, url, storagePath: path }];
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
-        setUploadProgress(null);
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          const newAttachments = [...(event.attachments || []), { name: file.name, url, storagePath: path }];
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), { attachments: newAttachments }, { merge: true });
+        } catch (err) {
+          console.error('post-upload error:', err);
+          alert(`保存に失敗しました\n${err.message}`);
+        } finally {
+          setUploadProgress(null);
+        }
       }
     );
   };
