@@ -9,10 +9,7 @@ import {
   UserPlus, Settings, RefreshCw
 } from 'lucide-react';
 
-// ==========================================
-// 【重要設定 1】Gemini APIキーを貼り付けてください
-// ==========================================
-const GEMINI_API_KEY = "AIzaSyB3abz4scBXPtRBtFLYWaxc_o0u3jfiyaQ";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // ==========================================
 // 【重要設定 2】ご自身のFirebase設定を貼り付けてください
