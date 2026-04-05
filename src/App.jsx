@@ -841,7 +841,7 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   );
 }
 
-const compressImage = (file, maxWidth, quality) => new Promise((resolve, reject) => {
+const compressImage = (file, maxWidth) => new Promise((resolve, reject) => {
   const img = new Image();
   const objectUrl = URL.createObjectURL(file);
   img.onload = () => {
@@ -851,7 +851,14 @@ const compressImage = (file, maxWidth, quality) => new Promise((resolve, reject)
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    resolve(canvas.toDataURL('image/jpeg', quality));
+    // 900KB未満になるまで品質を下げる
+    let quality = 0.82;
+    let dataUrl;
+    do {
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+      quality = Math.round((quality - 0.1) * 10) / 10;
+    } while (dataUrl.length > 900000 && quality >= 0.1);
+    resolve(dataUrl);
   };
   img.onerror = reject;
   img.src = objectUrl;
@@ -1004,7 +1011,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
     try {
       let url;
       if (file.type.startsWith('image/')) {
-        url = await compressImage(file, 1200, 0.82);
+        url = await compressImage(file, 1200);
       } else {
         url = await readAsDataUrl(file);
       }
