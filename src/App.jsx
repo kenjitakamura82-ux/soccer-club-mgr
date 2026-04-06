@@ -620,7 +620,7 @@ function ImportView({ events, onSuccess, onOpenSettings }) {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const urlNote = extractedUrls.length > 0
-        ? `\n\n【URLについて】\nテキスト内に以下のURLが含まれています。URLの内容は参照できませんが、URLをそのURLに関連する予定のmemoフィールドに含めてください。\n${extractedUrls.join('\n')}`
+        ? `\n\n【URLについて】\nテキスト内に以下のURLが含まれています。URLの内容は参照できません。以下のURLを、関連する予定のmemoフィールドに【一字一句変更せず】そのままコピーして含めてください。絶対に短縮・省略・変形しないでください。\n${extractedUrls.join('\n')}`
         : '';
 
       const prompt = `
