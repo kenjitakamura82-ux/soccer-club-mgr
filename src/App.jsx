@@ -686,38 +686,31 @@ ${text}${urlNote}
           // 【既存の予定とのマッチング（更新判定）】
           const usedIds = new Set();
           const enriched = validEvents.map(newItem => {
-            // 使用済みIDを除いた同日の既存予定を取得
             const sameDateEvents = events.filter(e => e.date === newItem.date && !usedIds.has(e.id));
-            // 同日かつ同種別で未使用のものを優先マッチ、なければ同日未使用の先頭
             const matched = sameDateEvents.find(e => e.type === newItem.type) ?? sameDateEvents[0] ?? null;
+            const freshId = crypto.randomUUID();
 
             if (matched) {
               usedIds.add(matched.id);
               return {
                 ...newItem,
                 id: matched.id,
+                _matchedId: matched.id,
+                _freshId: freshId,
                 isUpdate: true,
                 originalTitle: matched.title
               };
             }
             return {
               ...newItem,
-              id: crypto.randomUUID(),
+              id: freshId,
+              _matchedId: null,
+              _freshId: freshId,
               isUpdate: false
             };
           });
 
-          // 万一同一IDが重複した場合の保険：2番目以降は新規扱いにする
-          const seenIds = new Set();
-          const deduped = enriched.map(item => {
-            if (seenIds.has(item.id)) {
-              return { ...item, id: crypto.randomUUID(), isUpdate: false, originalTitle: undefined };
-            }
-            seenIds.add(item.id);
-            return item;
-          });
-
-          setPreviewDataList(deduped);
+          setPreviewDataList(enriched);
         }
       }
     } catch (err) {
@@ -728,11 +721,23 @@ ${text}${urlNote}
     }
   };
 
+  const handleToggleUpdate = (idx) => {
+    setPreviewDataList(list => list.map((item, i) => {
+      if (i !== idx) return item;
+      if (item.isUpdate) {
+        return { ...item, id: item._freshId, isUpdate: false };
+      } else if (item._matchedId) {
+        return { ...item, id: item._matchedId, isUpdate: true };
+      }
+      return item;
+    }));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
       const promises = previewDataList.map(data => {
-        const { isUpdate, originalTitle, ...saveData } = data;
+        const { isUpdate, originalTitle, _matchedId, _freshId, ...saveData } = data;
         const payload = {
           ...saveData,
           updatedAt: new Date().toISOString()
@@ -841,15 +846,9 @@ ${text}${urlNote}
                 </div>
                 <p className="text-[10px] text-gray-500 mt-1">{data.startTime || '時間未定'} 〜 / {data.location || '場所未定'}</p>
                 
-                {data.isUpdate ? (
-                  <div className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
-                    <RefreshCw className="w-3 h-3" /> 既存の予定を更新
-                  </div>
-                ) : (
-                  <div className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">
-                    <Plus className="w-3 h-3" /> 新規追加
-                  </div>
-                )}
+                <button onClick={() => handleToggleUpdate(idx)} className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border active:opacity-70 transition-opacity" style={data.isUpdate ? {color:'#2563eb',background:'#dbeafe',borderColor:'#93c5fd'} : {color:'#059669',background:'#d1fae5',borderColor:'#6ee7b7'}}>
+                  {data.isUpdate ? <><RefreshCw className="w-3 h-3" /> 既存を更新（タップで新規に変更）</> : <><Plus className="w-3 h-3" /> 新規追加{data._matchedId ? '（タップで更新に変更）' : ''}</>}
+                </button>
               </div>
             </div>
           );
