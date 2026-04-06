@@ -859,9 +859,20 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    const main = document.querySelector('main');
+    if (!main) return;
+    const scrollY = main.scrollTop;
+    main.style.overflow = 'hidden';
+    main.style.position = 'fixed';
+    main.style.top = `-${scrollY}px`;
+    main.style.width = '100%';
+    return () => {
+      main.style.overflow = '';
+      main.style.position = '';
+      main.style.top = '';
+      main.style.width = '';
+      main.scrollTop = scrollY;
+    };
   }, []);
 
   const handleUpdateType = async (newType) => {
