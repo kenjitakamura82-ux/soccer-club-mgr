@@ -1000,7 +1000,7 @@ function LocationField({ event }) {
       className={`w-full text-left text-xs flex items-start gap-2 p-3 rounded-xl transition-colors group ${event.location ? 'bg-emerald-50 hover:bg-emerald-100' : 'bg-gray-50 hover:bg-gray-100 border border-dashed border-gray-200'}`}
     >
       <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${event.location ? 'text-emerald-600' : 'text-gray-300'}`} />
-      <span className={event.location ? 'text-gray-700' : 'text-gray-400 italic'}>{event.location || '場所を追加...'}</span>
+      <span className={event.location ? 'text-gray-700' : 'text-gray-400 not-italic'}>{event.location || '場所を追加...'}</span>
     </button>
   );
 }
@@ -1232,7 +1232,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
           )}
           <div className="space-y-2">
             {attachments.length === 0 ? (
-              <div className="text-[10px] text-gray-400 text-center py-6 bg-gray-50 rounded-xl border border-dashed italic">登録された資料はありません</div>
+              <div className="text-[10px] text-gray-400 text-center py-6 bg-gray-50 rounded-xl border border-dashed not-italic">登録された資料はありません</div>
             ) : (
               attachments.map((file) => (
                 <div key={file.id} className="group relative">
@@ -1322,7 +1322,7 @@ function TabTransport({ event, profile, rides, attendances, onRequireProfile }) 
     } catch (e) { console.error(e); } finally { setIsSaving(false); }
   };
 
-  if (!isAttending) return <div className="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border-2 border-dashed m-4 italic">「参加」の場合のみ回答可能です</div>;
+  if (!isAttending) return <div className="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border-2 border-dashed m-4 not-italic">「参加」の場合のみ回答可能です</div>;
 
   return (
     <div className="space-y-6 pb-20">
@@ -1451,7 +1451,7 @@ function TabMatching({ event, rides, attendances, allStudents }) {
               <span className="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-100">空き: {d.remain}</span>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 text-[11px] leading-relaxed text-gray-600">
-              {d.passengers.length === 0 ? <span className="italic text-gray-400">同乗者なし</span> : d.passengers.map(p => p.name).join('、')}
+              {d.passengers.length === 0 ? <span className="not-italic text-gray-400">同乗者なし</span> : d.passengers.map(p => p.name).join('、')}
             </div>
           </div>
         ))}
