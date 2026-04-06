@@ -1188,18 +1188,15 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
         {isEditingEvent ? (
           <div className="space-y-3 animate-in fade-in">
              <div className="grid grid-cols-3 gap-2">
-               <div>
-                 <label className="text-[10px] font-bold text-gray-500 block mb-1">集合時間</label>
-                 <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.gatherTime} onChange={e => setEditData({...editData, gatherTime: e.target.value})} />
-               </div>
-               <div>
-                 <label className="text-[10px] font-bold text-gray-500 block mb-1">開始時間</label>
-                 <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.startTime} onChange={e => setEditData({...editData, startTime: e.target.value})} />
-               </div>
-               <div>
-                 <label className="text-[10px] font-bold text-gray-500 block mb-1">終了時間</label>
-                 <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.endTime} onChange={e => setEditData({...editData, endTime: e.target.value})} />
-               </div>
+               {[['集合時間','gatherTime'],['開始時間','startTime'],['終了時間','endTime']].map(([label, key]) => (
+                 <div key={key}>
+                   <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
+                   <div className="relative">
+                     <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-6" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
+                     {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5">×</button>}
+                   </div>
+                 </div>
+               ))}
              </div>
              <div>
                <label className="text-[10px] font-bold text-gray-500 block mb-1">場所</label>
