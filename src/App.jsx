@@ -675,11 +675,16 @@ ${text}${urlNote}
       const response = await res.json();
       const rawText = response.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || '';
       // URLコンテキスト使用時はMarkdownコードブロックで返ることがあるためJSONを抽出
-      const jsonMatch = rawText.match(/```json\s*([\s\S]*?)```/) || rawText.match(/(\[[\s\S]*\])/);
+      const jsonMatch = rawText.match(/```json\s*([\s\S]*?)```/) || rawText.match(/```\s*(\[[\s\S]*?\])\s*```/) || rawText.match(/(\[[\s\S]*\])/);
       const jsonText = jsonMatch ? jsonMatch[1] : rawText;
 
       if (jsonText) {
-        let parsed = JSON.parse(jsonText);
+        let parsed;
+        try {
+          parsed = JSON.parse(jsonText);
+        } catch {
+          throw new Error("AIの応答をJSON形式で解析できませんでした。もう一度お試しください。\n\n応答内容: " + rawText.slice(0, 200));
+        }
         if (!Array.isArray(parsed)) parsed = [parsed];
         const validEvents = parsed.filter(item => item.title && item.date);
         
