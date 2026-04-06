@@ -144,6 +144,7 @@ export default function App() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAddEvent, setShowAddEvent] = useState(false);
 
   // --- Auth Initialization ---
   useEffect(() => {
@@ -283,6 +284,12 @@ export default function App() {
           <Calendar className="w-6 h-6" />
           <span className="text-[10px] font-bold">スケジュール</span>
         </button>
+        <button onClick={() => setShowAddEvent(true)} className="flex-1 py-1 flex flex-col items-center gap-1 text-emerald-600">
+          <div className="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center -mt-5 shadow-lg active:scale-95 transition-transform">
+            <Plus className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-[10px] font-bold">手動追加</span>
+        </button>
         <button onClick={() => setCurrentTab('import')} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${currentTab === 'import' ? 'text-emerald-600' : 'text-gray-400'}`}>
           <Download className="w-6 h-6" />
           <span className="text-[10px] font-bold">読み込む</span>
@@ -319,6 +326,13 @@ export default function App() {
 
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
+      {showAddEvent && (
+        <AddEventModal
+          onClose={() => setShowAddEvent(false)}
+          onSaved={() => setShowAddEvent(false)}
+        />
       )}
     </div>
   );
@@ -618,6 +632,90 @@ function titleScore(a, b) {
   const intersection = tokA.filter(t => setB.has(t)).length;
   const union = new Set([...tokA, ...tokB]).size;
   return intersection / union;
+}
+
+function AddEventModal({ onClose, onSaved }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [form, setForm] = useState({ date: today, type: '練習', title: '', gatherTime: '', startTime: '', endTime: '', location: '', memo: '' });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const handleSave = async () => {
+    if (!form.date || !form.title.trim()) { setError('日付とタイトルは必須です'); return; }
+    setIsSaving(true);
+    try {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id), {
+        ...form, title: form.title.trim(), id, createdAt: now, updatedAt: now,
+      });
+      onSaved();
+    } catch (e) {
+      setError('保存に失敗しました');
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ maxWidth: 480, margin: '0 auto' }}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-t-2xl shadow-xl flex flex-col max-h-[92vh]">
+        <div className="flex items-center justify-between px-4 py-4 border-b">
+          <h2 className="font-bold text-gray-800">予定を手動追加</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <div className="overflow-y-auto p-4 space-y-3">
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 block mb-1">日付 *</label>
+            <input type="date" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={form.date} onChange={e => set('date', e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 block mb-1">種別 *</label>
+            <div className="flex gap-2">
+              {['練習', '試合', 'その他'].map(t => (
+                <button key={t} type="button" onClick={() => set('type', t)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${form.type === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 block mb-1">タイトル *</label>
+            <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" placeholder="例: DUC TM" value={form.title} onChange={e => set('title', e.target.value)} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[['集合時間', 'gatherTime'], ['開始時間', 'startTime'], ['終了時間', 'endTime']].map(([label, key]) => (
+              <div key={key}>
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
+                <div className="relative">
+                  <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-6" value={form[key]} onChange={e => set(key, e.target.value)} />
+                  {form[key] && <button type="button" onClick={() => set(key, '')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5">×</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 block mb-1">場所</label>
+            <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" placeholder="例: ○○グラウンド" value={form.location} onChange={e => set('location', e.target.value)} />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 block mb-1">メモ</label>
+            <textarea className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 h-20 resize-none" placeholder="備考など" value={form.memo} onChange={e => set('memo', e.target.value)} />
+          </div>
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+        </div>
+        <div className="p-4 border-t bg-white">
+          <button onClick={handleSave} disabled={isSaving || !form.date || !form.title.trim()}
+            className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold shadow-lg disabled:opacity-40">
+            {isSaving ? '保存中...' : '予定を追加'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ImportView({ events, onSuccess, onOpenSettings }) {
