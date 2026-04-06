@@ -684,28 +684,30 @@ ${text}${urlNote}
           setError("予定が検出されませんでした。テキストの形式を確認してください。");
         } else {
           // 【既存の予定とのマッチング（更新判定）】
+          const usedIds = new Set();
           const enriched = validEvents.map(newItem => {
-            const sameDateEvents = events.filter(e => e.date === newItem.date);
+            const sameDateEvents = events.filter(e => e.date === newItem.date && !usedIds.has(e.id));
             let matched = null;
-            
+
             if (sameDateEvents.length === 1) {
               matched = sameDateEvents[0];
             } else if (sameDateEvents.length > 1) {
-              matched = sameDateEvents.find(e => e.type === newItem.type) || sameDateEvents[0];
+              matched = sameDateEvents.find(e => e.type === newItem.type && !usedIds.has(e.id)) || sameDateEvents[0];
             }
-            
+
             if (matched) {
-              return { 
-                ...newItem, 
-                id: matched.id, 
-                isUpdate: true, 
-                originalTitle: matched.title 
+              usedIds.add(matched.id);
+              return {
+                ...newItem,
+                id: matched.id,
+                isUpdate: true,
+                originalTitle: matched.title
               };
             }
-            return { 
-              ...newItem, 
-              id: crypto.randomUUID(), 
-              isUpdate: false 
+            return {
+              ...newItem,
+              id: crypto.randomUUID(),
+              isUpdate: false
             };
           });
           
