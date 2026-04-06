@@ -45,7 +45,7 @@ JSON配列で出力してください：
 [ { "type": "練習"|"試合"|"その他", "title": "文字列", "date": "YYYY-MM-DD", "gatherTime": "HH:mm", "startTime": "HH:mm", "endTime": "HH:mm", "location": "文字列", "memo": "文字列" } ]
 
 解析対象テキスト：
-${r}${n.length>0?`\n\n【URLについて】\nテキスト内に以下のURLが含まれています。URLの内容は参照できませんが、URLをそのURLに関連する予定のmemoフィールドに含めてください。\n${n.join(`
+${r}${n.length>0?`\n\n【URLについて】\nテキスト内に以下のURLが含まれています。URLの内容は参照できません。以下のURLを、関連する予定のmemoフィールドに【一字一句変更せず】そのままコピーして含めてください。絶対に短縮・省略・変形しないでください。\n${n.join(`
 `)}`:``}
       `}]}],generationConfig:{responseMimeType:`application/json`,maxOutputTokens:8192}},o=await fetch(i,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify(a)});if(!o.ok){let e=await o.json();throw Error(e.error?.message||`AI通信エラーが発生しました`)}let s=(await o.json()).candidates?.[0]?.content?.parts?.find(e=>e.text)?.text||``,c=s.match(/```json\s*([\s\S]*?)```/)||s.match(/```\s*(\[[\s\S]*?\])\s*```/)||s.match(/(\[[\s\S]*\])/),l=c?c[1]:s;if(l){let t;try{t=JSON.parse(l)}catch{throw Error(`AIの応答をJSON形式で解析できませんでした。もう一度お試しください。
 
