@@ -601,6 +601,13 @@ function ImportView({ events, onSuccess, onOpenSettings }) {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (previewDataList !== null) {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [previewDataList]);
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
@@ -828,7 +835,7 @@ ${text}${urlNote}
         <h2 className="font-bold text-gray-800">解析結果 ({previewDataList.length}件)</h2>
         <button onClick={() => setPreviewDataList(null)} className="text-xs text-gray-500 underline decoration-gray-300 underline-offset-4">やり直す</button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
         {previewDataList.map((data, idx) => {
            let typeStyles = 'bg-gray-100 text-gray-700';
            if (data.type === '試合') typeStyles = 'bg-orange-100 text-orange-700';
