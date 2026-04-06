@@ -593,6 +593,33 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
   );
 }
 
+const GENERIC_TOKENS = new Set(['tm', 'fc', 'vs', 'sc', 'ac', 'af', 'uk', 'sp', 'cf', 'fs', 'ss']);
+
+function normalizeForMatch(s) {
+  if (!s) return '';
+  return s
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[　\s]+/g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+function titleScore(a, b) {
+  const na = normalizeForMatch(a);
+  const nb = normalizeForMatch(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.85;
+  const split = s => s.split(/[\s\-・×,、]+/).filter(t => t.length > 1 && !GENERIC_TOKENS.has(t));
+  const tokA = split(na);
+  const tokB = split(nb);
+  if (!tokA.length || !tokB.length) return 0;
+  const setB = new Set(tokB);
+  const intersection = tokA.filter(t => setB.has(t)).length;
+  const union = new Set([...tokA, ...tokB]).size;
+  return intersection / union;
+}
+
 function ImportView({ events, onSuccess, onOpenSettings }) {
   const [text, setText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -691,10 +718,16 @@ ${text}${urlNote}
           setError("予定が検出されませんでした。テキストの形式を確認してください。");
         } else {
           // 【既存の予定とのマッチング（更新判定）】
+          // スコア = タイトル類似度(0-1)×3 + 種別一致(0 or 1)、閾値1.5以上でマッチ
+          const MATCH_THRESHOLD = 1.5;
           const usedIds = new Set();
           const enriched = validEvents.map(newItem => {
             const sameDateEvents = events.filter(e => e.date === newItem.date && !usedIds.has(e.id));
-            const matched = sameDateEvents.find(e => e.type === newItem.type) ?? sameDateEvents[0] ?? null;
+            const scored = sameDateEvents
+              .map(e => ({ event: e, score: titleScore(newItem.title, e.title) * 3 + (e.type === newItem.type ? 1 : 0) }))
+              .sort((a, b) => b.score - a.score);
+            const best = scored[0];
+            const matched = best?.score >= MATCH_THRESHOLD ? best.event : null;
             const freshId = crypto.randomUUID();
 
             if (matched) {
@@ -857,7 +890,10 @@ ${text}${urlNote}
                 </div>
                 <p className="text-[10px] text-gray-500 mt-1">{data.startTime || '時間未定'} 〜 / {data.location || '場所未定'}</p>
                 
-                <button onClick={() => handleToggleUpdate(idx)} className="mt-2 inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border active:opacity-70 transition-opacity" style={data.isUpdate ? {color:'#2563eb',background:'#dbeafe',borderColor:'#93c5fd'} : {color:'#059669',background:'#d1fae5',borderColor:'#6ee7b7'}}>
+                {data.isUpdate && data.originalTitle && (
+                  <p className="text-[9px] text-blue-500 mt-0.5">既存: {data.originalTitle}</p>
+                )}
+                <button onClick={() => handleToggleUpdate(idx)} className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border active:opacity-70 transition-opacity" style={data.isUpdate ? {color:'#2563eb',background:'#dbeafe',borderColor:'#93c5fd'} : {color:'#059669',background:'#d1fae5',borderColor:'#6ee7b7'}}>
                   {data.isUpdate ? <><RefreshCw className="w-3 h-3" /> 既存を更新（タップで新規に変更）</> : <><Plus className="w-3 h-3" /> 新規追加{data._matchedId ? '（タップで更新に変更）' : ''}</>}
                 </button>
               </div>
