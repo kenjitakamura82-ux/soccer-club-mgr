@@ -9,7 +9,12 @@ import {
   UserPlus, Settings, RefreshCw
 } from 'lucide-react';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+/** 優先: ビルド時の VITE_GEMINI_API_KEY（.env / CI）。未設定時のみ localStorage（設定画面） */
+const getGeminiApiKey = () => {
+  const fromEnv = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  if (fromEnv) return fromEnv;
+  return (localStorage.getItem('gemini_api_key') || '').trim();
+};
 
 // ==========================================
 // 【重要設定 2】ご自身のFirebase設定を貼り付けてください
@@ -138,6 +143,7 @@ export default function App() {
   const [allStudents, setAllStudents] = useState({});
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // --- Auth Initialization ---
   useEffect(() => {
@@ -237,15 +243,24 @@ export default function App() {
             試験運用中
           </p>
         </div>
-        <button 
-          onClick={() => setShowProfileSetup(true)}
-          className="flex items-center gap-2 bg-emerald-700/50 hover:bg-emerald-700 px-3 py-1.5 rounded-md text-xs transition-colors"
-        >
-          <UserCircle className="w-4 h-4 text-emerald-200" />
-          <span className="font-medium truncate max-w-[80px]">
-            {profile ? profile.parentName : "未設定"}
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="bg-emerald-700/50 hover:bg-emerald-700 p-1.5 rounded-md transition-colors"
+            title="設定"
+          >
+            <Settings className="w-4 h-4 text-emerald-200" />
+          </button>
+          <button
+            onClick={() => setShowProfileSetup(true)}
+            className="flex items-center gap-2 bg-emerald-700/50 hover:bg-emerald-700 px-3 py-1.5 rounded-md text-xs transition-colors"
+          >
+            <UserCircle className="w-4 h-4 text-emerald-200" />
+            <span className="font-medium truncate max-w-[80px]">
+              {profile ? profile.parentName : "未設定"}
+            </span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-20">
@@ -259,7 +274,7 @@ export default function App() {
           />
         )}
         {currentTab === 'import' && (
-          <ImportView events={events} onSuccess={() => setCurrentTab('schedule')} />
+          <ImportView events={events} onSuccess={() => setCurrentTab('schedule')} onOpenSettings={() => setShowSettings(true)} />
         )}
       </main>
 
@@ -291,7 +306,7 @@ export default function App() {
       )}
 
       {showProfileSetup && (
-        <ProfileSetupModal 
+        <ProfileSetupModal
           userId={user.uid}
           currentProfile={profile}
           onComplete={(p) => {
@@ -301,6 +316,62 @@ export default function App() {
           onClose={() => setShowProfileSetup(false)}
         />
       )}
+
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+    </div>
+  );
+}
+
+function SettingsModal({ onClose }) {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [saved, setSaved] = useState(false);
+  const hasEnvGeminiKey = !!(import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+
+  const handleSave = () => {
+    const v = apiKey.trim();
+    if (v) localStorage.setItem('gemini_api_key', v);
+    else localStorage.removeItem('gemini_api_key');
+    setSaved(true);
+    setTimeout(() => { setSaved(false); onClose(); }, 800);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h2 className="font-bold text-base flex items-center gap-2"><Settings className="w-4 h-4" /> 設定</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <label className="text-xs font-bold text-gray-700">Gemini APIキー</label>
+          {hasEnvGeminiKey && (
+            <p className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5">
+              ビルド時に <code className="text-[9px]">VITE_GEMINI_API_KEY</code> が設定されています（.env またはデプロイのシークレット）。こちらが優先されます。
+            </p>
+          )}
+          <input
+            type="password"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder={hasEnvGeminiKey ? '環境変数利用時は空で可' : 'AIzaSy...'}
+            className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <p className="text-[10px] text-gray-400">
+            {hasEnvGeminiKey
+              ? '下の入力は任意です。環境変数が無い環境用に、このブラウザの localStorage にだけ保存されます。'
+              : 'キーはこのデバイスのみに保存され、外部に送信されません。開発時はプロジェクト直下の .env に VITE_GEMINI_API_KEY=... でも設定できます。'}
+          </p>
+          <button
+            onClick={handleSave}
+            disabled={!apiKey.trim() && !hasEnvGeminiKey}
+            className="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm disabled:opacity-40"
+          >
+            {saved ? '保存しました！' : '保存'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -522,7 +593,7 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
   );
 }
 
-function ImportView({ events, onSuccess }) {
+function ImportView({ events, onSuccess, onOpenSettings }) {
   const [text, setText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeStatus, setAnalyzeStatus] = useState('');
@@ -533,8 +604,9 @@ function ImportView({ events, onSuccess }) {
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
-    if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("ここに")) {
-      setError("AIキーが設定されていません。コードの上部にある GEMINI_API_KEY を確認してください。");
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      setError("APIキーが設定されていません。.env の VITE_GEMINI_API_KEY、または右上の設定から入力してください。");
       return;
     }
 
@@ -545,7 +617,7 @@ function ImportView({ events, onSuccess }) {
     setAnalyzeStatus(extractedUrls.length > 0 ? `URLを読み込み中... (${extractedUrls.length}件)` : 'スケジュールを解析中...');
 
     try {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const urlNote = extractedUrls.length > 0
         ? `\n\n【URLの参照】\nテキスト内に以下のURLが含まれています。各URLにアクセスして、会場・日時・集合場所などの情報があればそれも解析に反映してください。\n${extractedUrls.join('\n')}`
