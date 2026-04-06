@@ -686,14 +686,10 @@ ${text}${urlNote}
           // 【既存の予定とのマッチング（更新判定）】
           const usedIds = new Set();
           const enriched = validEvents.map(newItem => {
+            // 使用済みIDを除いた同日の既存予定を取得
             const sameDateEvents = events.filter(e => e.date === newItem.date && !usedIds.has(e.id));
-            let matched = null;
-
-            if (sameDateEvents.length === 1) {
-              matched = sameDateEvents[0];
-            } else if (sameDateEvents.length > 1) {
-              matched = sameDateEvents.find(e => e.type === newItem.type && !usedIds.has(e.id)) || sameDateEvents[0];
-            }
+            // 同日かつ同種別で未使用のものを優先マッチ、なければ同日未使用の先頭
+            const matched = sameDateEvents.find(e => e.type === newItem.type) ?? sameDateEvents[0] ?? null;
 
             if (matched) {
               usedIds.add(matched.id);
@@ -710,8 +706,18 @@ ${text}${urlNote}
               isUpdate: false
             };
           });
-          
-          setPreviewDataList(enriched);
+
+          // 万一同一IDが重複した場合の保険：2番目以降は新規扱いにする
+          const seenIds = new Set();
+          const deduped = enriched.map(item => {
+            if (seenIds.has(item.id)) {
+              return { ...item, id: crypto.randomUUID(), isUpdate: false, originalTitle: undefined };
+            }
+            seenIds.add(item.id);
+            return item;
+          });
+
+          setPreviewDataList(deduped);
         }
       }
     } catch (err) {
@@ -784,7 +790,7 @@ ${text}${urlNote}
           <h2 className="text-lg font-bold flex items-center gap-2 text-emerald-800"><Download className="w-5 h-5" /> スケジュール取り込み</h2>
           <p className="text-xs text-gray-500 leading-relaxed bg-white p-3 rounded-xl border border-gray-100">
             LINEの予定連絡をまるごとコピーして貼り付けてください。AIが日付・時間・場所を自動で判別します。<br/>
-            <span className="font-bold text-emerald-600 mt-1 block">💡 既存の予定と同じ日付の場合は、自動で「更新」されます。</span>
+            <span className="font-bold text-emerald-600 mt-1 block">💡 既存の予定と日付・種別が一致するものは「更新」、一致しないものは「新規追加」されます。同日に複数の予定がある場合はそれぞれ別々に登録されます。</span>
           </p>
           <textarea className="w-full h-64 p-4 border rounded-xl text-base outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner bg-white font-sans" placeholder="ここにLINEメッセージを貼り付け..." value={text} onChange={e => setText(e.target.value)} />
           {error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" /> <span className="break-all">{String(error)}</span></div>}
