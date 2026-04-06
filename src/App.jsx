@@ -856,6 +856,12 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
   const [tab, setTab] = useState('details');
   const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const handleUpdateType = async (newType) => {
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), {
