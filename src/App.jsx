@@ -849,7 +849,11 @@ ${text}${urlNote}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[9px] px-1.5 py-0.5 rounded font-black shrink-0 ${typeStyles}`}>{data.type}</span>
-                  <p className="font-bold text-sm text-gray-800 truncate">{data.title}</p>
+                  <input
+                    className="font-bold text-sm text-gray-800 bg-transparent border-b border-transparent focus:border-emerald-400 outline-none flex-1 min-w-0"
+                    value={data.title}
+                    onChange={e => setPreviewDataList(list => list.map((item, i) => i === idx ? { ...item, title: e.target.value } : item))}
+                  />
                 </div>
                 <p className="text-[10px] text-gray-500 mt-1">{data.startTime || '時間未定'} 〜 / {data.location || '場所未定'}</p>
                 
