@@ -614,13 +614,13 @@ function ImportView({ events, onSuccess, onOpenSettings }) {
     setError('');
 
     const extractedUrls = [...new Set((text.match(/(https?:\/\/[^\s）)]+)/g) || []))];
-    setAnalyzeStatus(extractedUrls.length > 0 ? `URLを読み込み中... (${extractedUrls.length}件)` : 'スケジュールを解析中...');
+    setAnalyzeStatus('スケジュールを解析中...');
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const urlNote = extractedUrls.length > 0
-        ? `\n\n【URLの参照】\nテキスト内に以下のURLが含まれています。各URLにアクセスして、会場・日時・集合場所などの情報があればそれも解析に反映してください。\n${extractedUrls.join('\n')}`
+        ? `\n\n【URLについて】\nテキスト内に以下のURLが含まれています。URLの内容は参照できませんが、URLをそのURLに関連する予定のmemoフィールドに含めてください。\n${extractedUrls.join('\n')}`
         : '';
 
       const prompt = `
@@ -638,10 +638,7 @@ function ImportView({ events, onSuccess, onOpenSettings }) {
 3. "その他"：「保護者会」「イベント」「飲み会」などはこれに統一します。
 
 【URLの扱い】
-テキスト内にURLが含まれる場合は、以下のルールに従ってください。
-・URLが参照先（調整さん・Googleフォーム等）として記載されている場合、そのURLをその予定のmemoフィールドの末尾に改行して含めてください。
-・URLから会場・日時などの情報が取得できた場合はlocationやtimeに反映し、URLはmemoに残してください。
-・URLが複数ある場合はすべてmemoに含めてください。
+テキスト内にURLが含まれる場合は、そのURLをその予定のmemoフィールドに含めてください。
 
 【出力形式】
 JSON配列で出力してください：
@@ -651,17 +648,10 @@ JSON配列で出力してください：
 ${text}${urlNote}
       `;
 
-      const hasUrls = extractedUrls.length > 0;
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        // url_context使用時はresponseMimeTypeを指定できないためURL有無で分岐
-        generationConfig: hasUrls
-          ? { maxOutputTokens: 8192 }
-          : { responseMimeType: "application/json", maxOutputTokens: 8192 }
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8192 }
       };
-      if (hasUrls) {
-        requestBody.tools = [{ url_context: {} }];
-      }
 
       const res = await fetch(apiUrl, {
         method: 'POST',
