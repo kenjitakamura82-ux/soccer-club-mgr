@@ -655,7 +655,9 @@ ${text}${urlNote}
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
         // url_context使用時はresponseMimeTypeを指定できないためURL有無で分岐
-        generationConfig: hasUrls ? {} : { responseMimeType: "application/json" }
+        generationConfig: hasUrls
+          ? { maxOutputTokens: 8192 }
+          : { responseMimeType: "application/json", maxOutputTokens: 8192 }
       };
       if (hasUrls) {
         requestBody.tools = [{ url_context: {} }];
