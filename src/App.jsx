@@ -70,7 +70,7 @@ const LinkedText = ({ text }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <LinkIcon className="w-3 h-3 shrink-0" />
-              <span className="truncate max-w-[200px] inline-block align-bottom">{part}</span>
+              <span className="break-all inline-block align-bottom">{part}</span>
             </a>
           );
         }
