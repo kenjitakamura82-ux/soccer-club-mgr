@@ -1180,6 +1180,9 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
   const fileInputRef = useRef(null);
 
   const [editData, setEditData] = useState({
+    title: event.title || '',
+    date: event.date || '',
+    type: event.type || '練習',
     gatherTime: event.gatherTime || '',
     startTime: event.startTime || '',
     endTime: event.endTime || '',
@@ -1189,6 +1192,9 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 
   useEffect(() => {
     setEditData({
+      title: event.title || '',
+      date: event.date || '',
+      type: event.type || '練習',
       gatherTime: event.gatherTime || '',
       startTime: event.startTime || '',
       endTime: event.endTime || '',
@@ -1208,8 +1214,12 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
   }, [event.id]);
 
   const handleSaveEventDetails = async () => {
+    if (!editData.title.trim()) return;
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', event.id), {
+        title: editData.title.trim(),
+        date: editData.date,
+        type: editData.type,
         gatherTime: editData.gatherTime,
         startTime: editData.startTime,
         endTime: editData.endTime,
@@ -1307,7 +1317,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
           {isEditingEvent ? (
             <div className="flex items-center gap-2">
               <button onClick={() => setIsEditingEvent(false)} className="text-[10px] text-gray-500 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors">キャンセル</button>
-              <button onClick={handleSaveEventDetails} className="text-[10px] flex items-center gap-1 text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded transition-colors"><Save className="w-3 h-3" />保存</button>
+              <button onClick={handleSaveEventDetails} disabled={!editData.title.trim()} className="text-[10px] flex items-center gap-1 text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-1 rounded transition-colors disabled:opacity-40"><Save className="w-3 h-3" />保存</button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -1332,6 +1342,27 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 
         {isEditingEvent ? (
           <div className="space-y-3 animate-in fade-in">
+             <div>
+               <label className="text-[10px] font-bold text-gray-500 block mb-1">タイトル *</label>
+               <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.title} onChange={e => setEditData({...editData, title: e.target.value})} />
+             </div>
+             <div className="grid grid-cols-2 gap-2">
+               <div>
+                 <label className="text-[10px] font-bold text-gray-500 block mb-1">日付</label>
+                 <input type="date" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} />
+               </div>
+               <div>
+                 <label className="text-[10px] font-bold text-gray-500 block mb-1">種別</label>
+                 <div className="flex gap-1">
+                   {['練習', '試合', 'その他'].map(t => (
+                     <button key={t} type="button" onClick={() => setEditData({...editData, type: t})}
+                       className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${editData.type === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                       {t}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             </div>
              <div className="grid grid-cols-3 gap-2">
                {[['集合時間','gatherTime'],['開始時間','startTime'],['終了時間','endTime']].map(([label, key]) => (
                  <div key={key}>
