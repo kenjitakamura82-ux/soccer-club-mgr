@@ -1311,6 +1311,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
   };
 
   return (
+    <>
     <div className="space-y-6 pb-20">
       <div className={`bg-white rounded-xl p-5 shadow-sm border space-y-4 overflow-hidden ${isCanceled ? 'bg-gray-50 border-gray-200' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between pb-2 border-b border-gray-50">
@@ -1474,6 +1475,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
         <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain p-4" onClick={e => e.stopPropagation()} />
       </div>
     )}
+    </>
   );
 }
 
