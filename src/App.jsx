@@ -1342,46 +1342,44 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 
         {isEditingEvent ? (
           <div className="space-y-3 animate-in fade-in">
-             <div>
-               <label className="text-[10px] font-bold text-gray-500 block mb-1">タイトル *</label>
-               <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.title} onChange={e => setEditData({...editData, title: e.target.value})} />
-             </div>
-             <div className="grid grid-cols-2 gap-2">
-               <div>
-                 <label className="text-[10px] font-bold text-gray-500 block mb-1">日付</label>
-                 <input type="date" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} />
-               </div>
-               <div>
-                 <label className="text-[10px] font-bold text-gray-500 block mb-1">種別</label>
-                 <div className="flex gap-1">
-                   {['練習', '試合', 'その他'].map(t => (
-                     <button key={t} type="button" onClick={() => setEditData({...editData, type: t})}
-                       className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${editData.type === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
-                       {t}
-                     </button>
-                   ))}
-                 </div>
-               </div>
-             </div>
-             <div className="grid grid-cols-3 gap-2">
-               {[['集合時間','gatherTime'],['開始時間','startTime'],['終了時間','endTime']].map(([label, key]) => (
-                 <div key={key}>
-                   <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
-                   <div className="relative">
-                     <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-6" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
-                     {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5">×</button>}
-                   </div>
-                 </div>
-               ))}
-             </div>
-             <div>
-               <label className="text-[10px] font-bold text-gray-500 block mb-1">場所</label>
-               <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.location} onChange={e => setEditData({...editData, location: e.target.value})} />
-             </div>
-             <div>
-               <label className="text-[10px] font-bold text-gray-500 block mb-1">メモ</label>
-               <textarea className="w-full border border-gray-200 rounded-lg p-2 text-base h-24 outline-none focus:ring-2 focus:ring-emerald-500" value={editData.memo} onChange={e => setEditData({...editData, memo: e.target.value})} />
-             </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">タイトル *</label>
+              <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.title} onChange={e => setEditData({...editData, title: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">日付</label>
+              <input type="date" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">種別</label>
+              <div className="flex gap-2">
+                {['練習', '試合', 'その他'].map(t => (
+                  <button key={t} type="button" onClick={() => setEditData({...editData, type: t})}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${editData.type === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[['集合時間','gatherTime'],['開始時間','startTime'],['終了時間','endTime']].map(([label, key]) => (
+                <div key={key}>
+                  <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
+                  <div className="relative">
+                    <input type="time" style={{ fontSize: '16px' }} className="w-full border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-emerald-500 pr-5" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
+                    {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 text-xs">×</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">場所</label>
+              <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.location} onChange={e => setEditData({...editData, location: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">メモ</label>
+              <textarea className="w-full border border-gray-200 rounded-lg p-2 text-base h-20 outline-none focus:ring-2 focus:ring-emerald-500 resize-none" value={editData.memo} onChange={e => setEditData({...editData, memo: e.target.value})} />
+            </div>
           </div>
         ) : (
           <>
