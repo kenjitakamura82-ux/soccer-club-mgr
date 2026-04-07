@@ -686,13 +686,13 @@ function AddEventModal({ onClose, onSaved }) {
             <label className="text-[10px] font-bold text-gray-500 block mb-1">タイトル *</label>
             <input type="text" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" placeholder="例: DUC TM" value={form.title} onChange={e => set('title', e.target.value)} />
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-2">
             {[['集合時間', 'gatherTime'], ['開始時間', 'startTime'], ['終了時間', 'endTime']].map(([label, key]) => (
-              <div key={key}>
-                <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
-                <div className="relative">
-                  <input type="time" className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-6" value={form[key]} onChange={e => set(key, e.target.value)} />
-                  {form[key] && <button type="button" onClick={() => set(key, '')} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5">×</button>}
+              <div key={key} className="flex items-center gap-3">
+                <label className="text-[10px] font-bold text-gray-500 w-14 shrink-0">{label}</label>
+                <div className="relative flex-1">
+                  <input type="time" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={form[key]} onChange={e => set(key, e.target.value)} />
+                  {form[key] && <button type="button" onClick={() => set(key, '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">×</button>}
                 </div>
               </div>
             ))}
@@ -1361,13 +1361,13 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-2">
               {[['集合時間','gatherTime'],['開始時間','startTime'],['終了時間','endTime']].map(([label, key]) => (
-                <div key={key}>
-                  <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
-                  <div className="relative">
-                    <input type="time" style={{ fontSize: '16px' }} className="w-full border border-gray-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-emerald-500 pr-5" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
-                    {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 text-xs">×</button>}
+                <div key={key} className="flex items-center gap-3">
+                  <label className="text-[10px] font-bold text-gray-500 w-14 shrink-0">{label}</label>
+                  <div className="relative flex-1">
+                    <input type="time" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
+                    {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">×</button>}
                   </div>
                 </div>
               ))}
