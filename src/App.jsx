@@ -1178,6 +1178,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
 
   const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const [editData, setEditData] = useState({
     title: event.title || '',
@@ -1432,7 +1433,11 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
                     </div>
                     <ExternalLink className="w-4 h-4 text-gray-300" />
                   </a>
-                  {file.url?.startsWith('data:image') && <div className="mt-2 rounded-xl overflow-hidden border border-gray-100"><img src={file.url} alt={file.name} className="w-full h-32 object-cover" /></div>}
+                  {file.url?.startsWith('data:image') && (
+                    <button type="button" onClick={() => setLightboxUrl(file.url)} className="mt-2 w-full rounded-xl overflow-hidden border border-gray-100 block">
+                      <img src={file.url} alt={file.name} className="w-full h-32 object-cover" />
+                    </button>
+                  )}
                   <button onClick={() => handleDeleteFile(file.id)} className="absolute -top-1 -right-1 p-1 bg-white text-red-400 border border-red-100 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3" /></button>
                 </div>
               ))
@@ -1462,6 +1467,13 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
         </div>
       )}
     </div>
+
+    {lightboxUrl && (
+      <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center" onClick={() => setLightboxUrl(null)}>
+        <button className="absolute top-4 right-4 text-white p-2" onClick={() => setLightboxUrl(null)}><X className="w-6 h-6" /></button>
+        <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain p-4" onClick={e => e.stopPropagation()} />
+      </div>
+    )}
   );
 }
 
