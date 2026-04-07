@@ -669,7 +669,7 @@ function AddEventModal({ onClose, onSaved }) {
         <div className="overflow-y-auto p-4 space-y-3">
           <div>
             <label className="text-[10px] font-bold text-gray-500 block mb-1">日付 *</label>
-            <input type="date" className="w-full max-w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={form.date} onChange={e => set('date', e.target.value)} />
+            <input type="date" className="w-full max-w-full appearance-none border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={form.date} onChange={e => set('date', e.target.value)} />
           </div>
           <div>
             <label className="text-[10px] font-bold text-gray-500 block mb-1">種別 *</label>
@@ -691,7 +691,7 @@ function AddEventModal({ onClose, onSaved }) {
               <div key={key} className="flex items-center gap-3">
                 <label className="text-[10px] font-bold text-gray-500 w-14 shrink-0">{label}</label>
                 <div className="relative flex-1 min-w-0">
-                  <input type="time" className="w-full max-w-full border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={form[key]} onChange={e => set(key, e.target.value)} />
+                  <input type="time" className="w-full max-w-full appearance-none border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={form[key]} onChange={e => set(key, e.target.value)} />
                   {form[key] && <button type="button" onClick={() => set(key, '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">×</button>}
                 </div>
               </div>
@@ -1348,7 +1348,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-500 block mb-1">日付</label>
-              <input type="date" className="w-full max-w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} />
+              <input type="date" className="w-full max-w-full appearance-none border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-emerald-500" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} />
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-500 block mb-1">種別</label>
@@ -1366,7 +1366,7 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
                 <div key={key} className="flex items-center gap-3">
                   <label className="text-[10px] font-bold text-gray-500 w-14 shrink-0">{label}</label>
                   <div className="relative flex-1 min-w-0">
-                    <input type="time" className="w-full max-w-full border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
+                    <input type="time" className="w-full max-w-full appearance-none border border-gray-200 rounded-lg px-3 py-2 text-base outline-none focus:ring-2 focus:ring-emerald-500 pr-8" value={editData[key]} onChange={e => setEditData({...editData, [key]: e.target.value})} />
                     {editData[key] && <button type="button" onClick={() => setEditData({...editData, [key]: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">×</button>}
                   </div>
                 </div>
