@@ -541,8 +541,8 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
         if (!ride) return true;
       }
 
-      // 集金が有効で未送金の場合
-      if (profile.role !== 'coach') {
+      // 集金が有効で未送金の場合（欠席は対象外）
+      if (profile.role !== 'coach' && attendance?.status !== '欠席') {
         const payment = payments.find(p => p.id === e.id);
         if (payment?.isActive) {
           const myStatus = paymentStatuses.find(ps => ps.eventId === e.id && ps.studentId === profile.studentId);
@@ -587,7 +587,8 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
             // 集金情報
             const paymentInfo = payments.find(p => p.id === event.id);
             const myPaymentStatus = profile ? paymentStatuses.find(ps => ps.eventId === event.id && ps.studentId === profile.studentId) : null;
-            const hasActivePayment = paymentInfo?.isActive && profile?.role !== 'coach';
+            const isAbsent = attendance?.status === '欠席';
+            const hasActivePayment = paymentInfo?.isActive && profile?.role !== 'coach' && !isAbsent;
             const isPaymentPending = hasActivePayment && (!myPaymentStatus || myPaymentStatus.status !== 'transferred');
             const isPaymentTransferred = hasActivePayment && myPaymentStatus?.status === 'transferred';
 
@@ -1566,7 +1567,7 @@ function TabDetails({ event, profile, attendances, payments, paymentStatuses, is
         </div>
       )}
 
-      {!isCanceled && paymentInfo?.isActive && profile?.role !== 'coach' && (
+      {!isCanceled && paymentInfo?.isActive && profile?.role !== 'coach' && familyAttendance.status !== '欠席' && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200 space-y-4">
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
             <Banknote className="w-4 h-4 text-yellow-600" />
