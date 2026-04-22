@@ -411,6 +411,7 @@ function SettingsModal({ onClose }) {
 
 function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
   const [parentName, setParentName] = useState(currentProfile?.parentName || '');
+  // コーチ保存時も子ども情報をプロファイルに保持しているので、常に復元できる
   const [childName, setChildName] = useState(currentProfile?.childName || '');
   const [jerseyNumber, setJerseyNumber] = useState(currentProfile?.jerseyNumber || '');
   const [role, setRole] = useState(currentProfile?.role || 'parent');
@@ -424,8 +425,13 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
     setIsSaving(true);
 
     const cleanParentName = parentName.replace(/[\s\u3000]+/g, '');
-    const cleanChildName = isCoach ? '' : childName.replace(/[\s\u3000]+/g, '');
-    const cleanJerseyNumber = isCoach ? '' : jerseyNumber.trim();
+    // コーチ時は子ども情報を空にせず、既存値を保持する
+    const cleanChildName = isCoach
+      ? (currentProfile?.childName || '')
+      : childName.replace(/[\s\u3000]+/g, '');
+    const cleanJerseyNumber = isCoach
+      ? (currentProfile?.jerseyNumber || '')
+      : jerseyNumber.trim();
     const studentId = isCoach ? `coach_${cleanParentName}` : generateStudentId(cleanChildName, cleanJerseyNumber);
 
     const profileData = {
@@ -1928,7 +1934,7 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
               <label className="text-[10px] font-bold text-gray-500 block mb-1">集金内容（説明）</label>
               <input
                 type="text"
-                className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-yellow-400"
                 placeholder="例: 試合費用・弁当代など"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
@@ -1939,7 +1945,7 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
               <input
                 type="number"
                 inputMode="numeric"
-                className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full border border-gray-200 rounded-lg p-2 text-base outline-none focus:ring-2 focus:ring-yellow-400"
                 placeholder="例: 3000"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
@@ -2027,7 +2033,7 @@ function PaymentStatusRow({ ps, displayName, onConfirm, onMemoChange }) {
       </div>
       <input
         type="text"
-        className="w-full border border-gray-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-400 bg-gray-50"
+        className="w-full border border-gray-100 rounded-lg px-2 py-1.5 text-base outline-none focus:ring-1 focus:ring-emerald-400 bg-gray-50"
         placeholder="メモ（任意）"
         value={memo}
         onChange={e => setMemo(e.target.value)}
