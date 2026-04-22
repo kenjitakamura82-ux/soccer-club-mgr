@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, deleteDoc } from 'firebase/firestore';
-import { 
+import {
   Calendar, Download, ChevronRight, MapPin, Clock, Users, Car, CheckCircle2,
   AlertCircle, X, Copy, Info, Loader2, Wifi, WifiOff, Trash2, ArrowRight,
   Edit3, Save, ExternalLink, Paperclip, FileText, Image as ImageIcon, Link as LinkIcon, Plus, UserCircle, Hash,
-  UserPlus, Settings, RefreshCw
+  UserPlus, Settings, RefreshCw, Banknote, ToggleLeft, ToggleRight, ShieldCheck
 } from 'lucide-react';
 
 /** 優先: ビルド時の VITE_GEMINI_API_KEY（.env / CI）。未設定時のみ localStorage（設定画面） */
@@ -141,6 +141,8 @@ export default function App() {
   const [attendances, setAttendances] = useState([]);
   const [rides, setRides] = useState([]);
   const [allStudents, setAllStudents] = useState({});
+  const [payments, setPayments] = useState([]);
+  const [paymentStatuses, setPaymentStatuses] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -213,11 +215,24 @@ export default function App() {
       setAllStudents(studentMap);
     }, (err) => console.error("Students error:", err));
 
+    const paymentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'payments');
+    const paymentStatusesRef = collection(db, 'artifacts', appId, 'public', 'data', 'paymentStatuses');
+
+    const unsubPayments = onSnapshot(paymentsRef, (snapshot) => {
+      setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => console.error("Payments error:", err));
+
+    const unsubPaymentStatuses = onSnapshot(paymentStatusesRef, (snapshot) => {
+      setPaymentStatuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => console.error("PaymentStatuses error:", err));
+
     return () => {
       unsubEvents();
       unsubAttendances();
       unsubRides();
       unsubStudents();
+      unsubPayments();
+      unsubPaymentStatuses();
     };
   }, [user, authReady]);
 
@@ -266,12 +281,14 @@ export default function App() {
 
       <main className="flex-1 overflow-y-auto pb-20">
         {currentTab === 'schedule' && (
-          <ScheduleView 
-            events={events} 
-            attendances={attendances} 
+          <ScheduleView
+            events={events}
+            attendances={attendances}
             rides={rides}
-            profile={profile} 
-            onSelectEvent={setSelectedEventId} 
+            payments={payments}
+            paymentStatuses={paymentStatuses}
+            profile={profile}
+            onSelectEvent={setSelectedEventId}
           />
         )}
         {currentTab === 'import' && (
@@ -297,14 +314,16 @@ export default function App() {
       </nav>
 
       {selectedEvent && (
-        <EventDetailModal 
-          event={selectedEvent} 
+        <EventDetailModal
+          event={selectedEvent}
           userId={user.uid}
           profile={profile}
           attendances={attendances}
           rides={rides}
           allStudents={allStudents}
-          onClose={() => setSelectedEventId(null)} 
+          payments={payments}
+          paymentStatuses={paymentStatuses}
+          onClose={() => setSelectedEventId(null)}
           onRequireProfile={() => {
             setSelectedEventId(null);
             setShowProfileSetup(true);
@@ -394,33 +413,39 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
   const [parentName, setParentName] = useState(currentProfile?.parentName || '');
   const [childName, setChildName] = useState(currentProfile?.childName || '');
   const [jerseyNumber, setJerseyNumber] = useState(currentProfile?.jerseyNumber || '');
+  const [role, setRole] = useState(currentProfile?.role || 'parent');
   const [isSaving, setIsSaving] = useState(false);
 
+  const isCoach = role === 'coach';
+
   const handleSave = async () => {
-    if (!parentName || !childName || !jerseyNumber) return;
+    if (!parentName) return;
+    if (!isCoach && (!childName || !jerseyNumber)) return;
     setIsSaving(true);
-    
+
     const cleanParentName = parentName.replace(/[\s\u3000]+/g, '');
-    const cleanChildName = childName.replace(/[\s\u3000]+/g, '');
-    const cleanJerseyNumber = jerseyNumber.trim();
-    const studentId = generateStudentId(cleanChildName, cleanJerseyNumber);
+    const cleanChildName = isCoach ? '' : childName.replace(/[\s\u3000]+/g, '');
+    const cleanJerseyNumber = isCoach ? '' : jerseyNumber.trim();
+    const studentId = isCoach ? `coach_${cleanParentName}` : generateStudentId(cleanChildName, cleanJerseyNumber);
 
     const profileData = {
       parentName: cleanParentName,
       childName: cleanChildName,
       jerseyNumber: cleanJerseyNumber,
       studentId: studentId,
-      role: 'parent',
+      role: role,
       updatedAt: new Date().toISOString()
     };
     
     try {
       await setDoc(doc(db, 'artifacts', appId, 'users', userId), profileData);
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), {
-        childName: cleanChildName,
-        jerseyNumber: cleanJerseyNumber,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      if (!isCoach) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), {
+          childName: cleanChildName,
+          jerseyNumber: cleanJerseyNumber,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
       
       onComplete(profileData);
     } catch (e) {
@@ -441,22 +466,39 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
         <div className="p-5 space-y-4">
           <p className="text-xs text-gray-500 mb-4">出欠や配車に回答するためには、以下の情報を設定してください。</p>
           <div>
-            <label className="text-xs font-bold text-gray-500 block mb-1">保護者のお名前</label>
-            <input type="text" placeholder="例：高村健二" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={parentName} onChange={e => setParentName(e.target.value)} />
+            <label className="text-xs font-bold text-gray-500 block mb-1">役割</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setRole('parent')}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${role === 'parent' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                保護者
+              </button>
+              <button type="button" onClick={() => setRole('coach')}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${role === 'coach' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                コーチ
+              </button>
+            </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 block mb-1">お子様の氏名（漢字）</label>
-            <input type="text" placeholder="例：高村悠太" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={childName} onChange={e => setChildName(e.target.value)} />
+            <label className="text-xs font-bold text-gray-500 block mb-1">{isCoach ? 'コーチのお名前' : '保護者のお名前'}</label>
+            <input type="text" placeholder={isCoach ? '例：田中コーチ' : '例：高村健二'} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={parentName} onChange={e => setParentName(e.target.value)} />
           </div>
-          <div>
-            <label className="text-xs font-bold text-gray-500 block mb-1">背番号</label>
-            <input type="text" inputMode="numeric" placeholder="例：10" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={jerseyNumber} onChange={e => setJerseyNumber(e.target.value)} />
-          </div>
-          <button 
+          {!isCoach && (
+            <>
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1">お子様の氏名（漢字）</label>
+                <input type="text" placeholder="例：高村悠太" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={childName} onChange={e => setChildName(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 block mb-1">背番号</label>
+                <input type="text" inputMode="numeric" placeholder="例：10" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-base" value={jerseyNumber} onChange={e => setJerseyNumber(e.target.value)} />
+              </div>
+            </>
+          )}
+          <button
             onClick={handleSave}
-            disabled={!parentName || !childName || !jerseyNumber || isSaving}
+            disabled={!parentName || (!isCoach && (!childName || !jerseyNumber)) || isSaving}
             className={`w-full py-3.5 mt-2 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
-              ${!parentName || !childName || !jerseyNumber || isSaving ? 'bg-gray-300' : 'bg-emerald-600 active:bg-emerald-700'}
+              ${!parentName || (!isCoach && (!childName || !jerseyNumber)) || isSaving ? 'bg-gray-300' : 'bg-emerald-600 active:bg-emerald-700'}
             `}
           >
             {isSaving ? <Loader2 className="animate-spin w-5 h-5" /> : '保存する'}
@@ -467,7 +509,7 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
   );
 }
 
-function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
+function ScheduleView({ events, attendances, rides, payments, paymentStatuses, profile, onSelectEvent }) {
   const [filter, setFilter] = useState('upcoming');
   const today = new Date().toISOString().split('T')[0];
 
@@ -483,19 +525,28 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
     return events.filter(e => {
       const eventDate = e.endDate ? e.endDate : e.date;
       if (eventDate < today) return false;
-      
+
       const attendance = attendances.find(a => a.eventId === e.id && a.studentId === profile.studentId);
       if (!attendance) return true;
-      
+
       // 試合の場合のみ、参加していれば送迎の回答も必須とする
       if (e.type === '試合' && attendance.status === '参加') {
         const ride = rides.find(r => r.eventId === e.id && r.studentId === profile.studentId);
         if (!ride) return true;
       }
-      
+
+      // 集金が有効で未送金の場合
+      if (profile.role !== 'coach') {
+        const payment = payments.find(p => p.id === e.id);
+        if (payment?.isActive) {
+          const myStatus = paymentStatuses.find(ps => ps.eventId === e.id && ps.studentId === profile.studentId);
+          if (!myStatus || myStatus.status !== 'transferred') return true;
+        }
+      }
+
       return false;
     }).length;
-  }, [events, attendances, rides, profile, today]);
+  }, [events, attendances, rides, payments, paymentStatuses, profile, today]);
 
   return (
     <div className="animate-in fade-in duration-300">
@@ -527,11 +578,21 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
             const previousWeekKey = index > 0 ? getWeekKey(filteredEvents[index - 1].date) : null;
             const isNewWeek = previousWeekKey && currentWeekKey !== previousWeekKey;
 
+            // 集金情報
+            const paymentInfo = payments.find(p => p.id === event.id);
+            const myPaymentStatus = profile ? paymentStatuses.find(ps => ps.eventId === event.id && ps.studentId === profile.studentId) : null;
+            const hasActivePayment = paymentInfo?.isActive && profile?.role !== 'coach';
+            const isPaymentPending = hasActivePayment && (!myPaymentStatus || myPaymentStatus.status !== 'transferred');
+            const isPaymentTransferred = hasActivePayment && myPaymentStatus?.status === 'transferred';
+
             let isUnanswered = false;
             if (profile && (event.endDate || event.date) >= today && !isCanceled) {
               if (!attendance) {
                 isUnanswered = true;
               } else if (event.type === '試合' && attendance.status === '参加' && !ride) {
+                isUnanswered = true;
+              }
+              if (isPaymentPending) {
                 isUnanswered = true;
               }
             }
@@ -593,6 +654,12 @@ function ScheduleView({ events, attendances, rides, profile, onSelectEvent }) {
                           </div>
                         ) : (
                           <span className="text-orange-500 bg-orange-50 px-2 py-1 rounded flex items-center gap-1"><AlertCircle className="w-3 h-3" />未回答</span>
+                        )}
+                        {isPaymentPending && (
+                          <span className="text-yellow-600 bg-yellow-50 px-2 py-1 rounded flex items-center gap-1"><Banknote className="w-3 h-3" />送金未対応</span>
+                        )}
+                        {isPaymentTransferred && (
+                          <span className="text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />送金済み</span>
                         )}
                       </div>
                     </div>
@@ -1004,7 +1071,7 @@ ${text}${urlNote}
   );
 }
 
-function EventDetailModal({ event, userId, profile, attendances, rides, allStudents, onClose, onRequireProfile }) {
+function EventDetailModal({ event, userId, profile, attendances, rides, allStudents, payments, paymentStatuses, onClose, onRequireProfile }) {
   const [tab, setTab] = useState('details');
   const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
 
@@ -1061,16 +1128,17 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
         <button onClick={onClose} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
       </div>
       <div className="flex border-b bg-white shrink-0 shadow-sm">
-        {['details', 'transport', 'matching'].map(t => (
+        {['details', 'transport', 'matching', 'payment'].map(t => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 text-xs font-bold border-b-2 transition-all ${tab === t ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400'}`}>
-            {t === 'details' ? '詳細・出欠' : t === 'transport' ? '送迎回答' : '配車プラン'}
+            {t === 'details' ? '詳細・出欠' : t === 'transport' ? '送迎回答' : t === 'matching' ? '配車プラン' : '集金管理'}
           </button>
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        {tab === 'details' && <TabDetails event={event} profile={profile} attendances={attendances} isCanceled={isCanceled} onRequireProfile={onRequireProfile} onClose={onClose} />}
+        {tab === 'details' && <TabDetails event={event} profile={profile} attendances={attendances} payments={payments} paymentStatuses={paymentStatuses} isCanceled={isCanceled} onRequireProfile={onRequireProfile} onClose={onClose} />}
         {tab === 'transport' && !isCanceled && <TabTransport event={event} profile={profile} rides={rides} attendances={attendances} onRequireProfile={onRequireProfile} />}
         {tab === 'matching' && !isCanceled && <TabMatching event={event} rides={rides} attendances={attendances} allStudents={allStudents} />}
+        {tab === 'payment' && <TabPayment event={event} profile={profile} payments={payments} paymentStatuses={paymentStatuses} allStudents={allStudents} />}
       </div>
     </div>
   );
@@ -1168,13 +1236,37 @@ function LocationField({ event }) {
   );
 }
 
-function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile, onClose }) {
+function TabDetails({ event, profile, attendances, payments, paymentStatuses, isCanceled, onRequireProfile, onClose }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
   const familyAttendance = profile ? (attendances.find(a => a.eventId === event.id && a.studentId === profile.studentId) || {}) : {};
   const [status, setStatus] = useState(familyAttendance.status || '');
   const [comment, setComment] = useState(familyAttendance.comment || '');
+
+  const paymentInfo = payments?.find(p => p.id === event.id);
+  const myPaymentStatus = profile ? paymentStatuses?.find(ps => ps.eventId === event.id && ps.studentId === profile.studentId) : null;
+
+  const handleMarkTransferred = async () => {
+    if (!profile) return onRequireProfile();
+    setIsSavingPayment(true);
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'paymentStatuses', `${event.id}_${profile.studentId}`), {
+        eventId: event.id,
+        studentId: profile.studentId,
+        responderName: profile.parentName,
+        status: 'transferred',
+        transferredAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error(e);
+      alert('送金済みの保存に失敗しました');
+    } finally {
+      setIsSavingPayment(false);
+    }
+  };
 
   const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
@@ -1467,6 +1559,43 @@ function TabDetails({ event, profile, attendances, isCanceled, onRequireProfile,
           )}
         </div>
       )}
+
+      {!isCanceled && paymentInfo?.isActive && profile?.role !== 'coach' && (
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200 space-y-4">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <Banknote className="w-4 h-4 text-yellow-600" />
+            支払い申告
+          </h3>
+          {paymentInfo.description && (
+            <p className="text-xs text-gray-600 bg-yellow-50 px-3 py-2 rounded-lg">{paymentInfo.description}</p>
+          )}
+          {paymentInfo.amount && (
+            <p className="text-sm font-bold text-yellow-700">金額: ¥{Number(paymentInfo.amount).toLocaleString()}</p>
+          )}
+          {myPaymentStatus?.isConfirmed ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+              <ShieldCheck className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+              <p className="font-bold text-emerald-800 text-sm">会計が確認済みです（領収）</p>
+              <p className="text-emerald-600 text-xs mt-1">確認者: {myPaymentStatus.confirmedBy}</p>
+              <p className="text-emerald-500 text-[10px] mt-0.5">{myPaymentStatus.confirmedAt ? new Date(myPaymentStatus.confirmedAt).toLocaleString('ja-JP') : ''}</p>
+            </div>
+          ) : myPaymentStatus?.status === 'transferred' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+              <CheckCircle2 className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+              <p className="font-bold text-blue-700 text-sm">送金済みとして申告済み</p>
+              <p className="text-blue-500 text-xs mt-1">会計の確認待ちです</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleMarkTransferred}
+              disabled={isSavingPayment || !profile}
+              className="w-full py-4 rounded-xl font-bold bg-yellow-500 text-white shadow-md active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-40"
+            >
+              {isSavingPayment ? <Loader2 className="animate-spin w-5 h-5" /> : <><Banknote className="w-5 h-5" />送金済みにする</>}
+            </button>
+          )}
+        </div>
+      )}
     </div>
 
     {lightboxUrl && (
@@ -1665,6 +1794,245 @@ function TabMatching({ event, rides, attendances, allStudents }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) {
+  const paymentInfo = payments?.find(p => p.id === event.id) || {};
+  const isCoach = profile?.role === 'coach';
+
+  const [isActive, setIsActive] = useState(paymentInfo.isActive || false);
+  const [description, setDescription] = useState(paymentInfo.description || '');
+  const [amount, setAmount] = useState(paymentInfo.amount || '');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // 更新時に最新値を反映
+  useEffect(() => {
+    setIsActive(paymentInfo.isActive || false);
+    setDescription(paymentInfo.description || '');
+    setAmount(paymentInfo.amount || '');
+  }, [paymentInfo.isActive, paymentInfo.description, paymentInfo.amount]);
+
+  const eventPaymentStatuses = paymentStatuses?.filter(ps => ps.eventId === event.id) || [];
+  const transferredStatuses = eventPaymentStatuses.filter(ps => ps.status === 'transferred');
+  const confirmedStatuses = eventPaymentStatuses.filter(ps => ps.isConfirmed);
+
+  const formatName = (ps) => {
+    const std = allStudents[ps.studentId];
+    if (std) return `${std.childName} [#${std.jerseyNumber}]`;
+    return ps.responderName || ps.studentId;
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payments', event.id), {
+        eventId: event.id,
+        isActive,
+        description,
+        amount: amount ? Number(amount) : null,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error(e);
+      alert('集金設定の保存に失敗しました');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleToggleActive = async (val) => {
+    setIsActive(val);
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payments', event.id), {
+        eventId: event.id,
+        isActive: val,
+        description,
+        amount: amount ? Number(amount) : null,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleConfirm = async (ps, confirmed) => {
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'paymentStatuses', ps.id), {
+        isConfirmed: confirmed,
+        confirmedBy: confirmed ? (profile?.parentName || 'コーチ') : null,
+        confirmedAt: confirmed ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error(e);
+      alert('確認済み設定に失敗しました');
+    }
+  };
+
+  const handleMemoChange = async (ps, memo) => {
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'paymentStatuses', ps.id), {
+        memo,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (!isCoach) {
+    // 保護者向け: 集金が有効なら状況表示のみ
+    if (!paymentInfo.isActive) {
+      return (
+        <div className="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-xl border-2 border-dashed m-4">
+          <Banknote className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p>現在、集金は設定されていません</p>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-4 pb-20">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p className="text-xs font-bold text-yellow-700 mb-1">集金が設定されています</p>
+          {paymentInfo.description && <p className="text-xs text-yellow-600">{paymentInfo.description}</p>}
+          {paymentInfo.amount && <p className="text-sm font-bold text-yellow-700 mt-1">金額: ¥{Number(paymentInfo.amount).toLocaleString()}</p>}
+        </div>
+        <p className="text-xs text-gray-500 text-center">「詳細・出欠」タブから送金の申告ができます</p>
+      </div>
+    );
+  }
+
+  // コーチ向け
+  return (
+    <div className="space-y-5 pb-20">
+      {/* 集金設定 */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <Banknote className="w-4 h-4 text-yellow-600" />
+            集金設定
+          </h3>
+          <button
+            onClick={() => handleToggleActive(!isActive)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-500'}`}
+          >
+            {isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            {isActive ? '集金あり' : '集金なし'}
+          </button>
+        </div>
+        {isActive && (
+          <div className="space-y-3 animate-in fade-in">
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">集金内容（説明）</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="例: 試合費用・弁当代など"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">金額（円）</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="例: 3000"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={handleSaveSettings}
+              disabled={isSavingSettings}
+              className="w-full py-2.5 rounded-lg bg-yellow-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              {isSavingSettings ? <Loader2 className="animate-spin w-4 h-4" /> : <><Save className="w-4 h-4" />設定を保存</>}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 集計 */}
+      <div className="grid grid-cols-2 gap-3 text-center">
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+          <p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">送金済み</p>
+          <p className="text-2xl font-black text-blue-500">{transferredStatuses.length}</p>
+          <p className="text-[10px] text-gray-400">アカウント</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+          <p className="text-[10px] text-gray-400 font-bold mb-1 tracking-widest uppercase">確認済み</p>
+          <p className="text-2xl font-black text-emerald-600">{confirmedStatuses.length}</p>
+          <p className="text-[10px] text-gray-400">アカウント</p>
+        </div>
+      </div>
+
+      {/* 送金済みリスト（消し込み） */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-3">
+        <h3 className="font-bold text-gray-800 text-sm">送金済みアカウント（消し込み）</h3>
+        {transferredStatuses.length === 0 ? (
+          <div className="text-center py-6 text-gray-400 text-xs bg-gray-50 rounded-xl border border-dashed">
+            送金済みの申告はまだありません
+          </div>
+        ) : (
+          transferredStatuses.map(ps => (
+            <PaymentStatusRow
+              key={ps.id}
+              ps={ps}
+              displayName={formatName(ps)}
+              onConfirm={handleConfirm}
+              onMemoChange={handleMemoChange}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PaymentStatusRow({ ps, displayName, onConfirm, onMemoChange }) {
+  const [memo, setMemo] = useState(ps.memo || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleConfirmToggle = async () => {
+    setSaving(true);
+    await onConfirm(ps, !ps.isConfirmed);
+    setSaving(false);
+  };
+
+  const handleMemoBlur = () => {
+    if (memo !== (ps.memo || '')) {
+      onMemoChange(ps, memo);
+    }
+  };
+
+  return (
+    <div className={`rounded-xl border p-3 space-y-2 transition-all ${ps.isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100'}`}>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800 truncate">{displayName}</p>
+          <p className="text-[10px] text-gray-400">{ps.responderName} · {ps.transferredAt ? new Date(ps.transferredAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</p>
+        </div>
+        <button
+          onClick={handleConfirmToggle}
+          disabled={saving}
+          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${ps.isConfirmed ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-gray-200 bg-white text-gray-400'}`}
+        >
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+          確認済み
+        </button>
+      </div>
+      <input
+        type="text"
+        className="w-full border border-gray-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-400 bg-gray-50"
+        placeholder="メモ（任意）"
+        value={memo}
+        onChange={e => setMemo(e.target.value)}
+        onBlur={handleMemoBlur}
+      />
     </div>
   );
 }
