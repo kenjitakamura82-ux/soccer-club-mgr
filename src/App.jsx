@@ -593,7 +593,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
             const isPaymentTransferred = hasActivePayment && myPaymentStatus?.status === 'transferred';
 
             let isUnanswered = false;
-            if (profile && (event.endDate || event.date) >= today && !isCanceled) {
+            if (profile && profile.role !== 'coach' && (event.endDate || event.date) >= today && !isCanceled) {
               if (!attendance) {
                 isUnanswered = true;
               } else if (event.type === '試合' && attendance.status === '参加' && !ride) {
