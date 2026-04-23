@@ -1079,8 +1079,17 @@ ${text}${urlNote}
 }
 
 function EventDetailModal({ event, userId, profile, attendances, rides, allStudents, payments, paymentStatuses, onClose, onRequireProfile }) {
-  const [tab, setTab] = useState('details');
   const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
+  const isPractice = event.type === '練習';
+  const isCoach = profile?.role === 'coach';
+
+  // 練習の場合: 詳細 + (コーチなら練習計画)
+  // 試合/その他: 詳細 + 送迎回答 + 配車プラン + 集金管理
+  const tabs = isPractice
+    ? ['details', ...(isCoach ? ['practice'] : [])]
+    : ['details', 'transport', 'matching', 'payment'];
+
+  const [tab, setTab] = useState('details');
 
   useEffect(() => {
     const main = document.querySelector('main');
@@ -1135,17 +1144,18 @@ function EventDetailModal({ event, userId, profile, attendances, rides, allStude
         <button onClick={onClose} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"><X className="w-5 h-5" /></button>
       </div>
       <div className="flex border-b bg-white shrink-0 shadow-sm">
-        {['details', 'transport', 'matching', 'payment'].map(t => (
+        {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 text-xs font-bold border-b-2 transition-all ${tab === t ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400'}`}>
-            {t === 'details' ? '詳細・出欠' : t === 'transport' ? '送迎回答' : t === 'matching' ? '配車プラン' : '集金管理'}
+            {t === 'details' ? '詳細' : t === 'transport' ? '送迎回答' : t === 'matching' ? '配車プラン' : t === 'payment' ? '集金管理' : '練習計画'}
           </button>
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        {tab === 'details' && <TabDetails event={event} profile={profile} attendances={attendances} payments={payments} paymentStatuses={paymentStatuses} isCanceled={isCanceled} onRequireProfile={onRequireProfile} onClose={onClose} />}
+        {tab === 'details' && <TabDetails event={event} profile={profile} attendances={attendances} allStudents={allStudents} payments={payments} paymentStatuses={paymentStatuses} isCanceled={isCanceled} onRequireProfile={onRequireProfile} onClose={onClose} />}
         {tab === 'transport' && !isCanceled && <TabTransport event={event} profile={profile} rides={rides} attendances={attendances} onRequireProfile={onRequireProfile} />}
         {tab === 'matching' && !isCanceled && <TabMatching event={event} rides={rides} attendances={attendances} allStudents={allStudents} />}
         {tab === 'payment' && <TabPayment event={event} profile={profile} payments={payments} paymentStatuses={paymentStatuses} allStudents={allStudents} />}
+        {tab === 'practice' && isCoach && <TabPractice event={event} attendances={attendances} allStudents={allStudents} />}
       </div>
     </div>
   );
@@ -1243,7 +1253,7 @@ function LocationField({ event }) {
   );
 }
 
-function TabDetails({ event, profile, attendances, payments, paymentStatuses, isCanceled, onRequireProfile, onClose }) {
+function TabDetails({ event, profile, attendances, allStudents, payments, paymentStatuses, isCanceled, onRequireProfile, onClose }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingEvent, setIsEditingEvent] = useState(false);
@@ -1567,6 +1577,10 @@ function TabDetails({ event, profile, attendances, payments, paymentStatuses, is
         </div>
       )}
 
+      {!isCanceled && event.type === '練習' && (
+        <PracticeAttendanceList event={event} attendances={attendances} allStudents={allStudents} />
+      )}
+
       {!isCanceled && paymentInfo?.isActive && profile?.role !== 'coach' && familyAttendance.status !== '欠席' && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200 space-y-4">
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -1612,6 +1626,62 @@ function TabDetails({ event, profile, attendances, payments, paymentStatuses, is
       </div>
     )}
     </>
+  );
+}
+
+function PracticeAttendanceList({ event, attendances, allStudents }) {
+  const eventAttendances = attendances.filter(a => a.eventId === event.id);
+  const allStudentIds = Object.keys(allStudents);
+
+  const sortByJersey = (ids) =>
+    [...ids].sort((a, b) => {
+      const na = Number(allStudents[a]?.jerseyNumber ?? 9999);
+      const nb = Number(allStudents[b]?.jerseyNumber ?? 9999);
+      return na - nb;
+    });
+
+  const attending = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId));
+  const absent = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId));
+  const unanswered = sortByJersey(
+    allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid))
+  );
+
+  const StudentChip = ({ studentId }) => {
+    const std = allStudents[studentId];
+    if (!std) return null;
+    return (
+      <div className="flex flex-col items-center gap-0.5 py-1">
+        <span className="text-[9px] font-black text-emerald-600">#{std.jerseyNumber}</span>
+        <span className="text-[10px] font-bold text-gray-700 leading-tight text-center break-all">{std.childName}</span>
+      </div>
+    );
+  };
+
+  const Section = ({ title, ids, color }) => {
+    if (ids.length === 0) return null;
+    return (
+      <div>
+        <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${color}`}>{title}（{ids.length}人）</p>
+        <div className="grid grid-cols-3 gap-1">
+          {ids.map(sid => <StudentChip key={sid} studentId={sid} />)}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-4">
+      <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm">
+        <Users className="w-4 h-4 text-emerald-600" />
+        出欠一覧
+      </h3>
+      <Section title="参加" ids={attending} color="text-emerald-600" />
+      <Section title="欠席" ids={absent} color="text-red-500" />
+      <Section title="未回答" ids={unanswered} color="text-gray-400" />
+      {attending.length === 0 && absent.length === 0 && unanswered.length === 0 && (
+        <p className="text-xs text-gray-400 text-center py-4">選手が登録されていません</p>
+      )}
+    </div>
   );
 }
 
@@ -2055,6 +2125,228 @@ function PaymentStatusRow({ ps, name, jerseyNumber, onConfirm, onMemoChange }) {
         onChange={e => setMemo(e.target.value)}
         onBlur={handleMemoBlur}
       />
+    </div>
+  );
+}
+
+// ── 練習計画タブ ──────────────────────────────────────────────
+const PRACTICE_COLORS = ['red', 'cyan', 'orange', 'black'];
+const COLOR_LABELS = { red: '赤', cyan: '水色', orange: 'オレンジ', black: '黒' };
+const COLOR_STYLES = {
+  red:    { bg: 'bg-red-500',    text: 'text-white',      border: 'border-red-500'    },
+  cyan:   { bg: 'bg-cyan-400',   text: 'text-white',      border: 'border-cyan-400'   },
+  orange: { bg: 'bg-orange-400', text: 'text-white',      border: 'border-orange-400' },
+  black:  { bg: 'bg-gray-800',   text: 'text-white',      border: 'border-gray-800'   },
+};
+const COLOR_SECTION_BG = {
+  red:    'bg-red-50 border-red-200',
+  cyan:   'bg-cyan-50 border-cyan-200',
+  orange: 'bg-orange-50 border-orange-200',
+  black:  'bg-gray-100 border-gray-300',
+};
+
+function TabPractice({ event, attendances, allStudents }) {
+  const [practiceData, setPracticeData] = useState(null);
+  const [globalMemo, setGlobalMemo] = useState('');
+  const [colorMemos, setColorMemos] = useState({ red: '', cyan: '', orange: '', black: '' });
+  // { studentId: 'red'|'cyan'|'orange'|'black'|null }
+  const [groups, setGroups] = useState({});
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Firestore リアルタイム購読
+  useEffect(() => {
+    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'practiceGroups', event.id);
+    const unsub = onSnapshot(ref, snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setPracticeData(d);
+        setGroups(d.groups || {});
+        setGlobalMemo(d.globalMemo || '');
+        setColorMemos(d.colorMemos || { red: '', cyan: '', orange: '', black: '' });
+      } else {
+        setPracticeData({});
+        setGroups({});
+        setGlobalMemo('');
+        setColorMemos({ red: '', cyan: '', orange: '', black: '' });
+      }
+    });
+    return unsub;
+  }, [event.id]);
+
+  const saveToFirestore = async (newGroups, newGlobalMemo, newColorMemos) => {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'practiceGroups', event.id), {
+        eventId: event.id,
+        groups: newGroups,
+        globalMemo: newGlobalMemo,
+        colorMemos: newColorMemos,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTapStudent = (studentId) => {
+    const current = groups[studentId] ?? null;
+    const idx = current === null ? 0 : (PRACTICE_COLORS.indexOf(current) + 1) % (PRACTICE_COLORS.length + 1);
+    const next = idx < PRACTICE_COLORS.length ? PRACTICE_COLORS[idx] : null;
+    const newGroups = { ...groups, [studentId]: next };
+    // null の場合はキーごと削除
+    if (next === null) delete newGroups[studentId];
+    setGroups(newGroups);
+    saveToFirestore(newGroups, globalMemo, colorMemos);
+  };
+
+  const handleGlobalMemoBlur = () => saveToFirestore(groups, globalMemo, colorMemos);
+  const handleColorMemoBlur = () => saveToFirestore(groups, globalMemo, colorMemos);
+
+  const eventAttendances = attendances.filter(a => a.eventId === event.id);
+  const allStudentIds = Object.keys(allStudents);
+
+  const sortByJersey = (ids) =>
+    [...ids].sort((a, b) => Number(allStudents[a]?.jerseyNumber ?? 9999) - Number(allStudents[b]?.jerseyNumber ?? 9999));
+
+  const attendingIds = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId));
+  const absentIds = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId));
+  const unansweredIds = sortByJersey(allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid)));
+
+  // 「追加パネル」で表示する欠席・未回答のうち、まだ groups に入っていないもの
+  const addableIds = sortByJersey([...absentIds, ...unansweredIds].filter(sid => !(sid in groups)));
+
+  // groups に含まれる全 studentId（参加者 + 手動追加分）
+  const allGroupedIds = [...new Set([...attendingIds, ...Object.keys(groups)])];
+  const sortedAllGroupedIds = sortByJersey(allGroupedIds);
+
+  // 色ごとにまとめたリスト
+  const colorGroups = {};
+  PRACTICE_COLORS.forEach(c => {
+    colorGroups[c] = sortedAllGroupedIds.filter(sid => groups[sid] === c);
+  });
+  const hasAnyColorGroup = PRACTICE_COLORS.some(c => colorGroups[c].length > 0);
+
+  const StudentTile = ({ studentId }) => {
+    const std = allStudents[studentId];
+    if (!std) return null;
+    const color = groups[studentId] ?? null;
+    const cs = color ? COLOR_STYLES[color] : null;
+    return (
+      <button
+        onClick={() => handleTapStudent(studentId)}
+        className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${
+          cs ? `${cs.bg} ${cs.text} ${cs.border}` : 'bg-white border-gray-200 text-gray-700'
+        }`}
+      >
+        <span className={`text-[9px] font-black ${cs ? 'text-white/80' : 'text-emerald-600'}`}>#{std.jerseyNumber}</span>
+        <span className="text-[10px] font-bold leading-tight text-center break-all">{std.childName}</span>
+      </button>
+    );
+  };
+
+  if (practiceData === null) {
+    return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-emerald-600" /></div>;
+  }
+
+  return (
+    <div className="space-y-5 pb-20">
+      {/* 全体メモ */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">全体練習メモ</label>
+        <textarea
+          className="w-full border border-gray-200 rounded-lg p-3 text-base h-20 outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          placeholder="全体での練習内容・連絡事項など..."
+          value={globalMemo}
+          onChange={e => setGlobalMemo(e.target.value)}
+          onBlur={handleGlobalMemoBlur}
+        />
+      </div>
+
+      {/* 出席者タイル */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            出席者（タップで色変更）
+          </label>
+          {saving && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
+        </div>
+        {sortedAllGroupedIds.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-4">出席者がいません</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-1.5">
+            {sortedAllGroupedIds.map(sid => <StudentTile key={sid} studentId={sid} />)}
+          </div>
+        )}
+        {/* 欠席・未回答を追加 */}
+        {addableIds.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowAddPanel(v => !v)}
+              className="text-xs text-emerald-600 font-bold flex items-center gap-1 mt-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              欠席・未回答者を追加
+            </button>
+            {showAddPanel && (
+              <div className="mt-2 grid grid-cols-4 gap-1.5 animate-in fade-in">
+                {addableIds.map(sid => {
+                  const std = allStudents[sid];
+                  if (!std) return null;
+                  const isAbsent = absentIds.includes(sid);
+                  return (
+                    <button
+                      key={sid}
+                      onClick={() => {
+                        const newGroups = { ...groups, [sid]: null };
+                        // null でも groups に追加してタイルに表示させる
+                        setGroups(newGroups);
+                        saveToFirestore(newGroups, globalMemo, colorMemos);
+                        setShowAddPanel(false);
+                      }}
+                      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${isAbsent ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
+                    >
+                      <span className={`text-[9px] font-black ${isAbsent ? 'text-red-400' : 'text-gray-400'}`}>#{std.jerseyNumber}</span>
+                      <span className="text-[10px] font-bold leading-tight text-center break-all">{std.childName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        <p className="text-[10px] text-gray-400">タップするたびに「赤→水色→オレンジ→黒→なし」と切り替わります</p>
+      </div>
+
+      {/* 色別グループ + 練習メモ */}
+      {hasAnyColorGroup && (
+        <div className="space-y-3">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">グループ別練習メモ</label>
+          {PRACTICE_COLORS.filter(c => colorGroups[c].length > 0).map(color => (
+            <div key={color} className={`rounded-xl border p-4 space-y-2 ${COLOR_SECTION_BG[color]}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-3 h-3 rounded-full ${COLOR_STYLES[color].bg}`} />
+                <span className="text-xs font-black text-gray-700">{COLOR_LABELS[color]}グループ</span>
+                <span className="text-[10px] text-gray-500">
+                  {colorGroups[color].map(sid => {
+                    const std = allStudents[sid];
+                    return std ? `#${std.jerseyNumber} ${std.childName}` : sid;
+                  }).join('、')}
+                </span>
+              </div>
+              <textarea
+                className="w-full border border-gray-200 rounded-lg p-3 text-base h-20 outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-white"
+                placeholder={`${COLOR_LABELS[color]}グループの練習メモ...`}
+                value={colorMemos[color] || ''}
+                onChange={e => setColorMemos(prev => ({ ...prev, [color]: e.target.value }))}
+                onBlur={handleColorMemoBlur}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
