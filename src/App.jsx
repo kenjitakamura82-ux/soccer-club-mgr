@@ -44,6 +44,10 @@ const appId = rawAppId;
 const isCoachProfile = (profile) =>
   profile?.role === 'coach' || profile?.studentId?.startsWith('coach_');
 
+const jerseyNum = (studentId, allStudents) => Number(allStudents[studentId]?.jerseyNumber ?? 9999);
+const sortByJersey = (ids, allStudents) =>
+  [...ids].sort((a, b) => jerseyNum(a, allStudents) - jerseyNum(b, allStudents));
+
 // --- Helpers ---
 const getDeadlineStatus = (deadlineStr) => {
   if (!deadlineStr) return 'none';
@@ -522,6 +526,7 @@ function ProfileSetupModal({ userId, currentProfile, onComplete, onClose }) {
 function ScheduleView({ events, attendances, rides, payments, paymentStatuses, profile, onSelectEvent }) {
   const [filter, setFilter] = useState('upcoming');
   const today = new Date().toISOString().split('T')[0];
+  const isCoach = isCoachProfile(profile);
 
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
@@ -530,33 +535,60 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
     });
   }, [events, filter, today]);
 
+  // Build O(1) lookup maps once per render
+  const attendanceMap = useMemo(() => {
+    if (!profile?.studentId) return {};
+    const m = {};
+    attendances.forEach(a => { if (a.studentId === profile.studentId) m[a.eventId] = a; });
+    return m;
+  }, [attendances, profile?.studentId]);
+
+  const rideMap = useMemo(() => {
+    if (!profile?.studentId) return {};
+    const m = {};
+    rides.forEach(r => { if (r.studentId === profile.studentId) m[r.eventId] = r; });
+    return m;
+  }, [rides, profile?.studentId]);
+
+  const paymentById = useMemo(() => {
+    const m = {};
+    payments.forEach(p => { m[p.id] = p; });
+    return m;
+  }, [payments]);
+
+  const myPaymentStatusMap = useMemo(() => {
+    if (!profile?.studentId) return {};
+    const m = {};
+    paymentStatuses.forEach(ps => { if (ps.studentId === profile.studentId) m[ps.eventId] = ps; });
+    return m;
+  }, [paymentStatuses, profile?.studentId]);
+
   const unansweredCount = useMemo(() => {
-    if (!profile?.studentId || isCoachProfile(profile)) return 0;
+    if (!profile?.studentId || isCoach) return 0;
     return events.filter(e => {
       const eventDate = e.endDate ? e.endDate : e.date;
       if (eventDate < today) return false;
 
-      const attendance = attendances.find(a => a.eventId === e.id && a.studentId === profile.studentId);
+      const attendance = attendanceMap[e.id];
       if (!attendance) return true;
 
       // 試合の場合のみ、参加していれば送迎の回答も必須とする
       if (e.type === '試合' && attendance.status === '参加') {
-        const ride = rides.find(r => r.eventId === e.id && r.studentId === profile.studentId);
-        if (!ride) return true;
+        if (!rideMap[e.id]) return true;
       }
 
       // 集金が有効で未送金の場合（欠席は対象外）
-      if (!isCoachProfile(profile) && attendance?.status !== '欠席') {
-        const payment = payments.find(p => p.id === e.id);
+      if (attendance.status !== '欠席') {
+        const payment = paymentById[e.id];
         if (payment?.isActive) {
-          const myStatus = paymentStatuses.find(ps => ps.eventId === e.id && ps.studentId === profile.studentId);
+          const myStatus = myPaymentStatusMap[e.id];
           if (!myStatus || myStatus.status !== 'transferred') return true;
         }
       }
 
       return false;
     }).length;
-  }, [events, attendances, rides, payments, paymentStatuses, profile, today]);
+  }, [events, attendanceMap, rideMap, paymentById, myPaymentStatusMap, isCoach, profile?.studentId, today]);
 
   return (
     <div className="animate-in fade-in duration-300">
@@ -577,27 +609,27 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
           <div className="text-center py-12 text-gray-400"><Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" /><p>予定はありません</p></div>
         ) : (
           filteredEvents.map((event, index) => {
-            const attendance = profile ? attendances.find(a => a.eventId === event.id && a.studentId === profile.studentId) : null;
-            const ride = profile ? rides?.find(r => r.eventId === event.id && r.studentId === profile.studentId) : null;
+            const attendance = profile ? attendanceMap[event.id] : null;
+            const ride = profile ? rideMap[event.id] : null;
             const dateObj = new Date(event.date);
             const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
             const hasAttachments = event.hasAttachments;
-            
+
             // 週区切りの計算
             const currentWeekKey = getWeekKey(event.date);
             const previousWeekKey = index > 0 ? getWeekKey(filteredEvents[index - 1].date) : null;
             const isNewWeek = previousWeekKey && currentWeekKey !== previousWeekKey;
 
             // 集金情報
-            const paymentInfo = payments.find(p => p.id === event.id);
-            const myPaymentStatus = profile ? paymentStatuses.find(ps => ps.eventId === event.id && ps.studentId === profile.studentId) : null;
+            const paymentInfo = paymentById[event.id];
+            const myPaymentStatus = profile ? myPaymentStatusMap[event.id] : null;
             const isAbsent = attendance?.status === '欠席';
-            const hasActivePayment = paymentInfo?.isActive && !isCoachProfile(profile) && !isAbsent;
+            const hasActivePayment = paymentInfo?.isActive && !isCoach && !isAbsent;
             const isPaymentPending = hasActivePayment && (!myPaymentStatus || myPaymentStatus.status !== 'transferred');
             const isPaymentTransferred = hasActivePayment && myPaymentStatus?.status === 'transferred';
 
             let isUnanswered = false;
-            if (profile && !isCoachProfile(profile) && (event.endDate || event.date) >= today && !isCanceled) {
+            if (profile && !isCoach && (event.endDate || event.date) >= today && !isCanceled) {
               if (!attendance) {
                 isUnanswered = true;
               } else if (event.type === '試合' && attendance.status === '参加' && !ride) {
@@ -625,7 +657,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
                   </div>
                 )}
                 <div onClick={() => onSelectEvent(event.id)} className={`bg-white rounded-xl shadow-sm border p-4 relative overflow-hidden transition-all cursor-pointer ${isCanceled ? 'opacity-60 bg-gray-50' : 'active:scale-[0.98]'} ${isUnanswered && !isCanceled ? 'border-emerald-200' : 'border-gray-100'}`}>
-                  {isUnanswered && !isCanceled && !isCoachProfile(profile) && (
+                  {isUnanswered && !isCanceled && !isCoach && (
                     <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
                       <div className="absolute top-2 -right-6 w-24 bg-emerald-500 text-white text-[10px] font-bold text-center py-1 rotate-45 shadow-sm">未回答</div>
                     </div>
@@ -653,7 +685,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
                       </div>
                     </div>
                   </div>
-                  {!isCanceled && profile && !isCoachProfile(profile) && (
+                  {!isCanceled && profile && !isCoach && (
                     <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold flex-wrap">
                         {attendance ? (
@@ -1637,17 +1669,11 @@ function PracticeAttendanceList({ event, attendances, allStudents }) {
   const eventAttendances = attendances.filter(a => a.eventId === event.id);
   const allStudentIds = Object.keys(allStudents);
 
-  const sortByJersey = (ids) =>
-    [...ids].sort((a, b) => {
-      const na = Number(allStudents[a]?.jerseyNumber ?? 9999);
-      const nb = Number(allStudents[b]?.jerseyNumber ?? 9999);
-      return na - nb;
-    });
-
-  const attending = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId));
-  const absent = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId));
+  const attending = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId), allStudents);
+  const absent = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId), allStudents);
   const unanswered = sortByJersey(
-    allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid))
+    allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid)),
+    allStudents
   );
 
   const StudentChip = ({ studentId }) => {
@@ -1888,8 +1914,9 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
   const [amount, setAmount] = useState(paymentInfo.amount || '');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  // 更新時に最新値を反映
+  // 更新時に最新値を反映（保存中は上書きしない）
   useEffect(() => {
+    if (isSavingSettings) return;
     setIsActive(paymentInfo.isActive || false);
     setDescription(paymentInfo.description || '');
     setAmount(paymentInfo.amount || '');
@@ -1905,43 +1932,35 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
     return { name: ps.responderName || ps.studentId, jerseyNumber: null };
   };
 
-  const sortedTransferredStatuses = [...transferredStatuses].sort((a, b) => {
-    const na = Number(allStudents[a.studentId]?.jerseyNumber ?? 9999);
-    const nb = Number(allStudents[b.studentId]?.jerseyNumber ?? 9999);
-    return na - nb;
-  });
+  const sortedTransferredStatuses = [...transferredStatuses].sort((a, b) =>
+    jerseyNum(a.studentId, allStudents) - jerseyNum(b.studentId, allStudents)
+  );
 
-  const handleSaveSettings = async () => {
-    setIsSavingSettings(true);
+  const savePaymentDoc = async (overrides, { showAlert } = {}) => {
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payments', event.id), {
         eventId: event.id,
         isActive,
         description,
         amount: amount ? Number(amount) : null,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        ...overrides
       }, { merge: true });
     } catch (e) {
       console.error(e);
-      alert('集金設定の保存に失敗しました');
-    } finally {
-      setIsSavingSettings(false);
+      if (showAlert) alert('集金設定の保存に失敗しました');
     }
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    await savePaymentDoc({}, { showAlert: true });
+    setIsSavingSettings(false);
   };
 
   const handleToggleActive = async (val) => {
     setIsActive(val);
-    try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'payments', event.id), {
-        eventId: event.id,
-        isActive: val,
-        description,
-        amount: amount ? Number(amount) : null,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } catch (e) {
-      console.error(e);
-    }
+    await savePaymentDoc({ isActive: val });
   };
 
   const handleConfirm = async (ps, confirmed) => {
@@ -2137,10 +2156,10 @@ function PaymentStatusRow({ ps, name, jerseyNumber, onConfirm, onMemoChange }) {
 const PRACTICE_COLORS = ['red', 'cyan', 'orange', 'black'];
 const COLOR_LABELS = { red: '赤', cyan: '水色', orange: 'オレンジ', black: '黒' };
 const COLOR_STYLES = {
-  red:    { bg: 'bg-red-500',    text: 'text-white',      border: 'border-red-500'    },
-  cyan:   { bg: 'bg-cyan-400',   text: 'text-white',      border: 'border-cyan-400'   },
-  orange: { bg: 'bg-orange-400', text: 'text-white',      border: 'border-orange-400' },
-  black:  { bg: 'bg-gray-800',   text: 'text-white',      border: 'border-gray-800'   },
+  red:    { bg: 'bg-red-500',    border: 'border-red-500'    },
+  cyan:   { bg: 'bg-cyan-400',   border: 'border-cyan-400'   },
+  orange: { bg: 'bg-orange-400', border: 'border-orange-400' },
+  black:  { bg: 'bg-gray-800',   border: 'border-gray-800'   },
 };
 const COLOR_SECTION_BG = {
   red:    'bg-red-50 border-red-200',
@@ -2149,14 +2168,38 @@ const COLOR_SECTION_BG = {
   black:  'bg-gray-100 border-gray-300',
 };
 
+function StudentTile({ studentId, color, allStudents, onTap }) {
+  const std = allStudents[studentId];
+  if (!std) return null;
+  const cs = color ? COLOR_STYLES[color] : null;
+  return (
+    <button
+      onClick={() => onTap(studentId)}
+      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${
+        cs ? `${cs.bg} text-white ${cs.border}` : 'bg-white border-gray-200 text-gray-700'
+      }`}
+    >
+      <span className={`text-[9px] font-black ${cs ? 'text-white/80' : 'text-emerald-600'}`}>#{std.jerseyNumber}</span>
+      <span className="text-[10px] font-bold leading-tight text-center break-all">{std.childName}</span>
+    </button>
+  );
+}
+
 function TabPractice({ event, attendances, allStudents }) {
-  const [practiceData, setPracticeData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
   const [globalMemo, setGlobalMemo] = useState('');
   const [colorMemos, setColorMemos] = useState({ red: '', cyan: '', orange: '', black: '' });
-  // { studentId: 'red'|'cyan'|'orange'|'black'|null }
   const [groups, setGroups] = useState({});
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // refs to avoid stale closures in async saves
+  const groupsRef = useRef(groups);
+  const globalMemoRef = useRef(globalMemo);
+  const colorMemosRef = useRef(colorMemos);
+  useEffect(() => { groupsRef.current = groups; }, [groups]);
+  useEffect(() => { globalMemoRef.current = globalMemo; }, [globalMemo]);
+  useEffect(() => { colorMemosRef.current = colorMemos; }, [colorMemos]);
 
   // Firestore リアルタイム購読
   useEffect(() => {
@@ -2164,16 +2207,15 @@ function TabPractice({ event, attendances, allStudents }) {
     const unsub = onSnapshot(ref, snap => {
       if (snap.exists()) {
         const d = snap.data();
-        setPracticeData(d);
         setGroups(d.groups || {});
         setGlobalMemo(d.globalMemo || '');
         setColorMemos(d.colorMemos || { red: '', cyan: '', orange: '', black: '' });
       } else {
-        setPracticeData({});
         setGroups({});
         setGlobalMemo('');
         setColorMemos({ red: '', cyan: '', orange: '', black: '' });
       }
+      setLoaded(true);
     });
     return unsub;
   }, [event.id]);
@@ -2196,34 +2238,31 @@ function TabPractice({ event, attendances, allStudents }) {
   };
 
   const handleTapStudent = (studentId) => {
-    const current = groups[studentId] ?? null;
+    const current = groupsRef.current[studentId] ?? null;
     // null → red → cyan → orange → black → red (null の次は red、black の次も red でループ)
     const idx = current === null ? 0 : (PRACTICE_COLORS.indexOf(current) + 1) % PRACTICE_COLORS.length;
     const next = PRACTICE_COLORS[idx];
-    const newGroups = { ...groups, [studentId]: next };
+    const newGroups = { ...groupsRef.current, [studentId]: next };
     setGroups(newGroups);
-    saveToFirestore(newGroups, globalMemo, colorMemos);
+    saveToFirestore(newGroups, globalMemoRef.current, colorMemosRef.current);
   };
 
-  const handleGlobalMemoBlur = () => saveToFirestore(groups, globalMemo, colorMemos);
-  const handleColorMemoBlur = () => saveToFirestore(groups, globalMemo, colorMemos);
+  const handleGlobalMemoBlur = () => saveToFirestore(groupsRef.current, globalMemo, colorMemosRef.current);
+  const handleColorMemoBlur = () => saveToFirestore(groupsRef.current, globalMemoRef.current, colorMemos);
 
   const eventAttendances = attendances.filter(a => a.eventId === event.id);
   const allStudentIds = Object.keys(allStudents);
 
-  const sortByJersey = (ids) =>
-    [...ids].sort((a, b) => Number(allStudents[a]?.jerseyNumber ?? 9999) - Number(allStudents[b]?.jerseyNumber ?? 9999));
-
-  const attendingIds = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId));
-  const absentIds = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId));
-  const unansweredIds = sortByJersey(allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid)));
+  const attendingIds = sortByJersey(eventAttendances.filter(a => a.status === '参加').map(a => a.studentId), allStudents);
+  const absentIds = sortByJersey(eventAttendances.filter(a => a.status === '欠席').map(a => a.studentId), allStudents);
+  const unansweredIds = sortByJersey(allStudentIds.filter(sid => !eventAttendances.find(a => a.studentId === sid)), allStudents);
 
   // 「追加パネル」で表示する欠席・未回答のうち、まだ groups に入っていないもの
-  const addableIds = sortByJersey([...absentIds, ...unansweredIds].filter(sid => !(sid in groups)));
+  const addableIds = sortByJersey([...absentIds, ...unansweredIds].filter(sid => !(sid in groups)), allStudents);
 
   // groups に含まれる全 studentId（参加者 + 手動追加分）
   const allGroupedIds = [...new Set([...attendingIds, ...Object.keys(groups)])];
-  const sortedAllGroupedIds = sortByJersey(allGroupedIds);
+  const sortedAllGroupedIds = sortByJersey(allGroupedIds, allStudents);
 
   // 色ごとにまとめたリスト
   const colorGroups = {};
@@ -2232,25 +2271,7 @@ function TabPractice({ event, attendances, allStudents }) {
   });
   const hasAnyColorGroup = PRACTICE_COLORS.some(c => colorGroups[c].length > 0);
 
-  const StudentTile = ({ studentId }) => {
-    const std = allStudents[studentId];
-    if (!std) return null;
-    const color = groups[studentId] ?? null;
-    const cs = color ? COLOR_STYLES[color] : null;
-    return (
-      <button
-        onClick={() => handleTapStudent(studentId)}
-        className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${
-          cs ? `${cs.bg} ${cs.text} ${cs.border}` : 'bg-white border-gray-200 text-gray-700'
-        }`}
-      >
-        <span className={`text-[9px] font-black ${cs ? 'text-white/80' : 'text-emerald-600'}`}>#{std.jerseyNumber}</span>
-        <span className="text-[10px] font-bold leading-tight text-center break-all">{std.childName}</span>
-      </button>
-    );
-  };
-
-  if (practiceData === null) {
+  if (!loaded) {
     return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-emerald-600" /></div>;
   }
 
@@ -2280,7 +2301,9 @@ function TabPractice({ event, attendances, allStudents }) {
           <p className="text-xs text-gray-400 text-center py-4">出席者がいません</p>
         ) : (
           <div className="grid grid-cols-4 gap-1.5">
-            {sortedAllGroupedIds.map(sid => <StudentTile key={sid} studentId={sid} />)}
+            {sortedAllGroupedIds.map(sid => (
+              <StudentTile key={sid} studentId={sid} color={groups[sid] ?? null} allStudents={allStudents} onTap={handleTapStudent} />
+            ))}
           </div>
         )}
         {/* 欠席・未回答を追加 */}
