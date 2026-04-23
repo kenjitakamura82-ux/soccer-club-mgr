@@ -1825,11 +1825,17 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
   const transferredStatuses = eventPaymentStatuses.filter(ps => ps.status === 'transferred');
   const confirmedStatuses = eventPaymentStatuses.filter(ps => ps.isConfirmed);
 
-  const formatName = (ps) => {
+  const getStudentInfo = (ps) => {
     const std = allStudents[ps.studentId];
-    if (std) return `${std.childName} [#${std.jerseyNumber}]`;
-    return ps.responderName || ps.studentId;
+    if (std) return { name: std.childName, jerseyNumber: std.jerseyNumber };
+    return { name: ps.responderName || ps.studentId, jerseyNumber: null };
   };
+
+  const sortedTransferredStatuses = [...transferredStatuses].sort((a, b) => {
+    const na = Number(allStudents[a.studentId]?.jerseyNumber ?? 9999);
+    const nb = Number(allStudents[b.studentId]?.jerseyNumber ?? 9999);
+    return na - nb;
+  });
 
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
@@ -1985,22 +1991,26 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
             送金済みの申告はまだありません
           </div>
         ) : (
-          transferredStatuses.map(ps => (
-            <PaymentStatusRow
-              key={ps.id}
-              ps={ps}
-              displayName={formatName(ps)}
-              onConfirm={handleConfirm}
-              onMemoChange={handleMemoChange}
-            />
-          ))
+          sortedTransferredStatuses.map(ps => {
+            const { name, jerseyNumber } = getStudentInfo(ps);
+            return (
+              <PaymentStatusRow
+                key={ps.id}
+                ps={ps}
+                name={name}
+                jerseyNumber={jerseyNumber}
+                onConfirm={handleConfirm}
+                onMemoChange={handleMemoChange}
+              />
+            );
+          })
         )}
       </div>
     </div>
   );
 }
 
-function PaymentStatusRow({ ps, displayName, onConfirm, onMemoChange }) {
+function PaymentStatusRow({ ps, name, jerseyNumber, onConfirm, onMemoChange }) {
   const [memo, setMemo] = useState(ps.memo || '');
   const [saving, setSaving] = useState(false);
 
@@ -2020,7 +2030,12 @@ function PaymentStatusRow({ ps, displayName, onConfirm, onMemoChange }) {
     <div className={`rounded-xl border p-3 space-y-2 transition-all ${ps.isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100'}`}>
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-800 truncate">{displayName}</p>
+          <p className="text-sm font-bold text-gray-800 truncate flex items-center gap-1.5">
+            {jerseyNumber != null && (
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">#{jerseyNumber}</span>
+            )}
+            {name}
+          </p>
           <p className="text-[10px] text-gray-400">{ps.responderName} · {ps.transferredAt ? new Date(ps.transferredAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</p>
         </div>
         <button
