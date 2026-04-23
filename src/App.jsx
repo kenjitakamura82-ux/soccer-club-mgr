@@ -527,7 +527,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
   }, [events, filter, today]);
 
   const unansweredCount = useMemo(() => {
-    if (!profile?.studentId) return 0;
+    if (!profile?.studentId || profile?.role === 'coach') return 0;
     return events.filter(e => {
       const eventDate = e.endDate ? e.endDate : e.date;
       if (eventDate < today) return false;
@@ -649,7 +649,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
                       </div>
                     </div>
                   </div>
-                  {!isCanceled && profile && (
+                  {!isCanceled && profile && profile.role !== 'coach' && (
                     <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold flex-wrap">
                         {attendance ? (
@@ -1982,7 +1982,7 @@ function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) 
           {paymentInfo.description && <p className="text-xs text-yellow-600">{paymentInfo.description}</p>}
           {paymentInfo.amount && <p className="text-sm font-bold text-yellow-700 mt-1">金額: ¥{Number(paymentInfo.amount).toLocaleString()}</p>}
         </div>
-        <p className="text-xs text-gray-500 text-center">「詳細・出欠」タブから送金の申告ができます</p>
+        <p className="text-xs text-gray-500 text-center">「詳細」タブから送金の申告ができます</p>
       </div>
     );
   }
