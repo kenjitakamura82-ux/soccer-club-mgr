@@ -40,6 +40,10 @@ if (rawAppId.includes('/')) rawAppId = rawAppId.split('/')[0];
 if (rawAppId.endsWith('_src')) rawAppId = rawAppId.slice(0, -4);
 const appId = rawAppId;
 
+// コーチかどうかを判定（role フィールドが未設定の古いプロファイルは studentId パターンで補完）
+const isCoachProfile = (profile) =>
+  profile?.role === 'coach' || profile?.studentId?.startsWith('coach_');
+
 // --- Helpers ---
 const getDeadlineStatus = (deadlineStr) => {
   if (!deadlineStr) return 'none';
@@ -527,7 +531,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
   }, [events, filter, today]);
 
   const unansweredCount = useMemo(() => {
-    if (!profile?.studentId || profile?.role === 'coach') return 0;
+    if (!profile?.studentId || isCoachProfile(profile)) return 0;
     return events.filter(e => {
       const eventDate = e.endDate ? e.endDate : e.date;
       if (eventDate < today) return false;
@@ -542,7 +546,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
       }
 
       // 集金が有効で未送金の場合（欠席は対象外）
-      if (profile.role !== 'coach' && attendance?.status !== '欠席') {
+      if (!isCoachProfile(profile) && attendance?.status !== '欠席') {
         const payment = payments.find(p => p.id === e.id);
         if (payment?.isActive) {
           const myStatus = paymentStatuses.find(ps => ps.eventId === e.id && ps.studentId === profile.studentId);
@@ -588,12 +592,12 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
             const paymentInfo = payments.find(p => p.id === event.id);
             const myPaymentStatus = profile ? paymentStatuses.find(ps => ps.eventId === event.id && ps.studentId === profile.studentId) : null;
             const isAbsent = attendance?.status === '欠席';
-            const hasActivePayment = paymentInfo?.isActive && profile?.role !== 'coach' && !isAbsent;
+            const hasActivePayment = paymentInfo?.isActive && !isCoachProfile(profile) && !isAbsent;
             const isPaymentPending = hasActivePayment && (!myPaymentStatus || myPaymentStatus.status !== 'transferred');
             const isPaymentTransferred = hasActivePayment && myPaymentStatus?.status === 'transferred';
 
             let isUnanswered = false;
-            if (profile && profile.role !== 'coach' && (event.endDate || event.date) >= today && !isCanceled) {
+            if (profile && !isCoachProfile(profile) && (event.endDate || event.date) >= today && !isCanceled) {
               if (!attendance) {
                 isUnanswered = true;
               } else if (event.type === '試合' && attendance.status === '参加' && !ride) {
@@ -621,7 +625,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
                   </div>
                 )}
                 <div onClick={() => onSelectEvent(event.id)} className={`bg-white rounded-xl shadow-sm border p-4 relative overflow-hidden transition-all cursor-pointer ${isCanceled ? 'opacity-60 bg-gray-50' : 'active:scale-[0.98]'} ${isUnanswered && !isCanceled ? 'border-emerald-200' : 'border-gray-100'}`}>
-                  {isUnanswered && !isCanceled && (
+                  {isUnanswered && !isCanceled && !isCoachProfile(profile) && (
                     <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
                       <div className="absolute top-2 -right-6 w-24 bg-emerald-500 text-white text-[10px] font-bold text-center py-1 rotate-45 shadow-sm">未回答</div>
                     </div>
@@ -649,7 +653,7 @@ function ScheduleView({ events, attendances, rides, payments, paymentStatuses, p
                       </div>
                     </div>
                   </div>
-                  {!isCanceled && profile && profile.role !== 'coach' && (
+                  {!isCanceled && profile && !isCoachProfile(profile) && (
                     <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold flex-wrap">
                         {attendance ? (
@@ -1081,7 +1085,7 @@ ${text}${urlNote}
 function EventDetailModal({ event, userId, profile, attendances, rides, allStudents, payments, paymentStatuses, onClose, onRequireProfile }) {
   const isCanceled = event.title?.includes('中止') || event.title?.includes('休み');
   const isPractice = event.type === '練習';
-  const isCoach = profile?.role === 'coach';
+  const isCoach = isCoachProfile(profile);
 
   // 練習の場合: 詳細 + (コーチなら練習計画)
   // 試合/その他: 詳細 + 送迎回答 + 配車プラン + 集金管理
@@ -1556,7 +1560,7 @@ function TabDetails({ event, profile, attendances, allStudents, payments, paymen
         </div>
       )}
 
-      {!isCanceled && profile?.role !== 'coach' && (
+      {!isCanceled && !isCoachProfile(profile) && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-gray-800">出欠回答</h3>
@@ -1581,7 +1585,7 @@ function TabDetails({ event, profile, attendances, allStudents, payments, paymen
         <PracticeAttendanceList event={event} attendances={attendances} allStudents={allStudents} />
       )}
 
-      {!isCanceled && paymentInfo?.isActive && profile?.role !== 'coach' && familyAttendance.status !== '欠席' && (
+      {!isCanceled && paymentInfo?.isActive && !isCoachProfile(profile) && familyAttendance.status !== '欠席' && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200 space-y-4">
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
             <Banknote className="w-4 h-4 text-yellow-600" />
@@ -1877,7 +1881,7 @@ function TabMatching({ event, rides, attendances, allStudents }) {
 
 function TabPayment({ event, profile, payments, paymentStatuses, allStudents }) {
   const paymentInfo = payments?.find(p => p.id === event.id) || {};
-  const isCoach = profile?.role === 'coach';
+  const isCoach = isCoachProfile(profile);
 
   const [isActive, setIsActive] = useState(paymentInfo.isActive || false);
   const [description, setDescription] = useState(paymentInfo.description || '');
