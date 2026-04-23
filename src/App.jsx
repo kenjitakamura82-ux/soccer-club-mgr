@@ -1556,7 +1556,7 @@ function TabDetails({ event, profile, attendances, allStudents, payments, paymen
         </div>
       )}
 
-      {!isCanceled && (
+      {!isCanceled && profile?.role !== 'coach' && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-gray-800">家族の出欠回答</h3>
@@ -2193,11 +2193,10 @@ function TabPractice({ event, attendances, allStudents }) {
 
   const handleTapStudent = (studentId) => {
     const current = groups[studentId] ?? null;
-    const idx = current === null ? 0 : (PRACTICE_COLORS.indexOf(current) + 1) % (PRACTICE_COLORS.length + 1);
-    const next = idx < PRACTICE_COLORS.length ? PRACTICE_COLORS[idx] : null;
+    // null → red → cyan → orange → black → red (null の次は red、black の次も red でループ)
+    const idx = current === null ? 0 : (PRACTICE_COLORS.indexOf(current) + 1) % PRACTICE_COLORS.length;
+    const next = PRACTICE_COLORS[idx];
     const newGroups = { ...groups, [studentId]: next };
-    // null の場合はキーごと削除
-    if (next === null) delete newGroups[studentId];
     setGroups(newGroups);
     saveToFirestore(newGroups, globalMemo, colorMemos);
   };
