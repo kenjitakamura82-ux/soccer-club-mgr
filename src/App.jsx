@@ -1559,7 +1559,7 @@ function TabDetails({ event, profile, attendances, allStudents, payments, paymen
       {!isCanceled && profile?.role !== 'coach' && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="font-bold text-gray-800">家族の出欠回答</h3>
+            <h3 className="font-bold text-gray-800">出欠回答</h3>
             {familyAttendance.responderName && <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border">更新: {familyAttendance.responderName}</span>}
           </div>
           <div className="flex gap-3">
