@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil, Bell, X } from 'lucide-react';
+import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil, Bell, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, dateLabel, timeLabel, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
@@ -207,7 +207,8 @@ function EventDetail({ e, ctx, open, onEdit }) {
             <span>{e.location}{isKashiwanohaEs(e) && <button onClick={() => open('venue')} className="ml-2 text-blue-600 underline text-xs">使い方</button>}</span>
           </p>
         )}
-        {e.memo && <p className="flex gap-2 whitespace-pre-wrap"><FileText className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />{e.memo}</p>}
+        {e.memo && <p className="flex gap-2 whitespace-pre-wrap"><FileText className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" /><span className="min-w-0"><Linkify text={e.memo} ctx={ctx} /></span></p>}
+        {e.hasAttachments && <Attachments eventId={e.id} ctx={ctx} />}
       </div>
 
       {myKid && !isCanceled(e) && (
@@ -241,6 +242,55 @@ function EventDetail({ e, ctx, open, onEdit }) {
           {!attending.length && <p className="text-gray-400 text-xs">まだいません</p>}
         </div>
       </section>
+    </div>
+  );
+}
+
+// メモに貼られたURL（調整さんなど）を押せるようにする。LINEの中のブラウザで開く
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+function Linkify({ text, ctx }) {
+  return String(text).split(URL_RE).map((part, i) => (i % 2
+    ? <a key={i} href={part} onClick={(ev) => { ev.preventDefault(); ctx.actions.openUrl(part); }} className="text-blue-600 underline break-all">{part}</a>
+    : part));
+}
+
+// 予定の添付（既存アプリや line-schedule-bot が入れた画像・ファイル）。画像は押すと大きく見られる
+function Attachments({ eventId, ctx }) {
+  const [list, setList] = useState(null);
+  const [view, setView] = useState(null);
+  useEffect(() => { ctx.actions.loadAttachments(eventId).then(setList).catch(() => setList([])); }, [ctx.actions, eventId]);
+  if (!list) return <p className="flex gap-2 text-xs text-gray-400"><Paperclip className="w-4 h-4" />添付を読み込み中…</p>;
+  if (!list.length) return null;
+  const images = list.filter((a) => a.url?.startsWith('data:image/'));
+  const files = list.filter((a) => !a.url?.startsWith('data:image/'));
+  const openFile = async (a) => {
+    const blob = await (await fetch(a.url)).blob();
+    window.open(URL.createObjectURL(blob), '_blank');
+  };
+  return (
+    <div className="space-y-2">
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((a) => (
+            <button key={a.id} onClick={() => setView(a)} className="aspect-square rounded-xl overflow-hidden bg-gray-100">
+              <img src={a.url} alt={a.name || '添付画像'} className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+      {files.map((a) => (
+        <button key={a.id} onClick={() => openFile(a)} className="w-full flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 text-left text-sm">
+          <Paperclip className="w-4 h-4 text-gray-400 shrink-0" /><span className="truncate flex-1">{a.name || 'ファイル'}</span><span className="text-xs text-blue-600">開く</span>
+        </button>
+      ))}
+      <AnimatePresence>
+        {view && (
+          <motion.div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setView(null)}>
+            <motion.img initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} transition={spring} src={view.url} alt={view.name || '添付画像'} className="max-w-full max-h-full rounded-lg" />
+            <button aria-label="閉じる" className="absolute right-3 w-10 h-10 rounded-full bg-white/20 text-white grid place-items-center" style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}><X className="w-6 h-6" /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

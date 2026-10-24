@@ -6,7 +6,7 @@ const sat = untilWeekday(6), sun = untilWeekday(0) || 7;
 
 const state = {
   events: [
-    { id: 'ev1', date: day(sat), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
+    { id: 'ev1', date: day(sat), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド', hasAttachments: true, memo: '出欠は調整さんでも受付中 https://chouseisan.com/s?h=example' },
     { id: 'ev2', date: day(sun), type: '試合', title: '練習試合（△△SC）', gatherTime: '08:30', startTime: '09:30', location: '〇〇市民運動場' },
     { id: 'ev3', date: day(sat + 7), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
     { id: 'ev4', date: day(sat + 8), type: '試合', title: '市リーグ 第5節', gatherTime: '08:40', location: '柏の葉公園 第2グラウンド', answerDeadline: day(sat + 6) },
@@ -104,6 +104,7 @@ export const actions = {
   saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   loadVenue: async () => null,
+  loadAttachments: async (eventId) => (eventId === 'ev1' ? [{ id: 'a1', name: '練習メニュー.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="400" height="260" fill="%23d1fae5"/><text x="200" y="140" font-size="28" text-anchor="middle" fill="%23065f46">練習メニュー（見本）</text></svg>').replace(/%2523/g, '%23') }, { id: 'a2', name: '大会要項.pdf', url: 'data:application/pdf;base64,JVBERi0=' }] : []),
   shareTargetPicker: async (messages) => { console.log('shareTargetPicker', messages); return { status: 'success' }; },
   getFriendship: async () => false,
   addFriendUrl: () => 'https://line.me/R/ti/p/%40example',

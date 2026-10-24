@@ -1,7 +1,7 @@
 import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // src/App.jsx と同じプロジェクト・同じ appId。データは既存アプリと共有する
 const firebaseConfig = {
@@ -119,6 +119,12 @@ export const actions = {
   setRoles: (uid, roles) => updateDoc(memberDoc(uid), { roles, updatedAt: now() }),
 
   // 画像1枚ずつ別のドキュメント（1件1MBの制限があるため）。scripts/liff-admin.mjs venue で入れる
+  // 予定の添付（既存アプリや line-schedule-bot が入れた画像・ファイル。url は data URL）
+  async loadAttachments(eventId) {
+    const snap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'events', eventId, 'attachments'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  },
+
   async loadVenue() {
     const keys = ['map', 'gateNo', 'gateYes'];
     const snaps = await Promise.all(keys.map((k) => getDoc(doc(db, 'artifacts', APP_ID, 'liffContent', `venue-${k}`))));
