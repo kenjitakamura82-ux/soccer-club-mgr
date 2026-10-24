@@ -110,6 +110,7 @@ export function entryFlex(liffUrl, day = '金') {
       body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
         { type: 'text', text: 'いつものスケジュールを、LINEの中で確認できます。', size: 'sm', color: '#555555', wrap: true },
         { type: 'text', text: `毎週${day}曜の朝には、このグループに招待した「まちさかマネージャー」が今週末の予定をお知らせします。`, size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: '初めて開くときだけ、LINEの「許可する」と、名簿からお子さんを選ぶ画面が出ます。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'md', action: { type: 'uri', label: '開く', uri: liffUrl } },
