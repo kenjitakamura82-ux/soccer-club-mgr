@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Pencil, Bell, X, Paperclip } from 'lucide-react';
+import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, CalendarPlus, Pencil, Bell, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
@@ -58,9 +58,9 @@ export default function Home({ ctx, open }) {
 
       {editor && (
         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} transition={spring} whileTap={{ scale: 0.9 }} onClick={() => setEditing('new')}
-          className="fixed right-4 z-20 bg-sky-100 text-sky-950 rounded-2xl shadow-md px-5 py-4 font-bold text-[15px] flex items-center gap-2.5"
+          className="fixed right-4 z-20 bg-emerald-600 text-white rounded-full shadow-lg shadow-emerald-600/30 pl-4 pr-5 py-3.5 font-bold text-[15px] flex items-center gap-2"
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}>
-          <Pencil className="w-5 h-5" />予定を追加
+          <CalendarPlus className="w-5 h-5" />予定を追加
         </motion.button>
       )}
       {editor && <EventEditor ctx={ctx} open={!!editing} event={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
