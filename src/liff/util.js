@@ -7,7 +7,10 @@ export const md = (s) => { const d = parseDate(s); return { m: d.getMonth() + 1,
 export const dateLabel = (s) => { const x = md(s); return `${x.m}/${x.d}(${x.w})`; };
 
 export const isCanceled = (e) => e.title?.includes('中止') || e.title?.includes('休み');
-export const timeLabel = (e) => [e.gatherTime && `${e.gatherTime}集合`, e.startTime && (e.endTime ? `${e.startTime}〜${e.endTime}` : `${e.startTime}開始`)].filter(Boolean).join(' ・ ');
+// 時刻は「開始（集合）〜終了（解散）」の2つで見せる（2026-10-24 ユーザー決定）。
+// 既存アプリや line-schedule-bot が入れた集合時刻（gatherTime）があれば、それを開始として扱う
+export const startOf = (e) => e.gatherTime || e.startTime || '';
+export const timeLabel = (e) => { const s = startOf(e), t = e.endTime || ''; return s ? `${s}〜${t}` : t ? `〜${t}` : ''; };
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {

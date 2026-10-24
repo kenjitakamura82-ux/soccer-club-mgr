@@ -79,7 +79,7 @@ export const actions = {
     await new Promise((r) => setTimeout(r, 900));
     const m = text.match(/(\d{1,2})\/(\d{1,2})/);
     const date = m ? `${new Date().getFullYear()}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : day(10);
-    const list = [{ date, type: /試合|大会|カップ|TM/.test(text) ? '試合' : '練習', title: /試合|大会|カップ/.test(text) ? '練習試合' : '練習', gatherTime: '08:30', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド', memo: /水筒/.test(text) ? '水筒を多めに' : '' }];
+    const list = [{ date, type: /試合|大会|カップ|TM/.test(text) ? '試合' : '練習', title: /試合|大会|カップ/.test(text) ? '練習試合' : '練習', startTime: '08:30', endTime: '11:00', location: '柏の葉小 第二グラウンド', memo: /水筒/.test(text) ? '水筒を多めに' : '' }];
     if (/両日|土日/.test(text)) list.push({ ...list[0], date: day(sun + 7), title: '練習' });
     return list;
   },

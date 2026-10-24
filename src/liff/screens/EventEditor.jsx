@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Sparkles, Loader2, Plus, Ban } from 'lucide-react';
 import { Sheet, Press, Segmented, useShake, useToast, spring } from '../ui.jsx';
-import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled } from '../util.js';
+import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf } from '../util.js';
 
 // 「AIで読み取る」は使うAIを決めるまで「準備中」で押せない。Vercel の環境変数 VITE_AI_PARSE=on で使える（開発の見本データでは常に使える）
 const AI_ENABLED = import.meta.env.VITE_AI_PARSE === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
 
-const EMPTY = { date: '', type: '練習', title: '', gatherTime: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '' };
-const pick = (e) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || '']));
+const EMPTY = { date: '', type: '練習', title: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '' };
+// 開始は集合の時刻。古い予定の集合時刻（gatherTime）があれば開始に入れる
+const pick = (e) => ({ ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || ''])), startTime: e ? startOf(e) : '' });
 
 // 予定の追加・修正（配車担当・案内係・管理者）。新規はAIで文章から読み取って入力欄を埋められる
 export default function EventEditor({ ctx, event, open, onClose }) {
@@ -37,7 +38,7 @@ function EditorBody({ ctx, event, onClose }) {
     if (!f.date || !f.title.trim()) { setErr('日付とタイトルを入れてください'); return shake(); }
     setSaving(true);
     try {
-      const data = { ...f, title: f.title.trim() };
+      const data = { ...f, title: f.title.trim(), gatherTime: '' };
       if (!data.answerDeadline) delete data.answerDeadline;
       await ctx.actions.saveEvent(event ? { ...data, id: event.id } : data);
       toast(event ? '予定を直しました' : '予定を追加しました', `${dateLabel(f.date)} ${f.title.trim()}`);
@@ -92,10 +93,9 @@ function EditorBody({ ctx, event, onClose }) {
         {f.date && !f.answerDeadline && <p className="text-[11px] text-gray-500 -mt-2">締切が空なら {dateLabel(defaultDeadline(f))}（{f.type === '試合' ? '2週間前' : '3日前'}）</p>}
         <div><span className="text-xs text-gray-500">種別</span><Segmented id="ev-type" value={f.type} onChange={set('type')} options={[{ value: '練習', label: '練習' }, { value: '試合', label: '試合' }, { value: 'その他', label: 'その他' }]} /></div>
         {field('タイトル', <input className={input} value={f.title} onChange={set('title')} placeholder="例：練習、市リーグ 第5節" />)}
-        <div className="grid grid-cols-3 gap-2">
-          {field('集合', <input type="time" className={input} value={f.gatherTime} onChange={set('gatherTime')} />)}
-          {field('開始', <input type="time" className={input} value={f.startTime} onChange={set('startTime')} />)}
-          {field('終了', <input type="time" className={input} value={f.endTime} onChange={set('endTime')} />)}
+        <div className="grid grid-cols-2 gap-2">
+          {field('開始（集合）', <input type="time" className={input} value={f.startTime} onChange={set('startTime')} />)}
+          {field('終了（解散）', <input type="time" className={input} value={f.endTime} onChange={set('endTime')} />)}
         </div>
         {field('場所', <input className={input} value={f.location} onChange={set('location')} placeholder="例：柏の葉小 第二グラウンド" />)}
         {field('メモ（持ち物・注意など）', <textarea className={`${input} h-20`} value={f.memo} onChange={set('memo')} />)}

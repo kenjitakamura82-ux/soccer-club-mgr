@@ -11,9 +11,10 @@ const EDITORS = ['ride', 'guide', 'admin'];
 const prompt = (todayIso) => `サッカーチーム（少年団）の予定を、コーチが貼り付けた文章から取り出します。
 今日の日付: ${todayIso}（日本時間）。「来週土曜」「11/3」など年の無い日付は、今日以降で一番近い日にする。
 文章に含まれる予定を日付ごとに全て、次のJSON形式で出力すること。予定が無ければ {"events": []}。
-{"events": [{"date": "YYYY-MM-DD", "type": "練習"|"試合"|"その他", "title": "短いタイトル", "gatherTime": "HH:MM または空文字", "startTime": "HH:MM または空文字", "endTime": "HH:MM または空文字", "location": "場所。不明なら空文字", "memo": "持ち物や注意など、上の項目に入らない大事なこと。無ければ空文字"}]}
+{"events": [{"date": "YYYY-MM-DD", "type": "練習"|"試合"|"その他", "title": "短いタイトル", "startTime": "HH:MM または空文字", "endTime": "HH:MM または空文字", "location": "場所。不明なら空文字", "memo": "持ち物や注意など、上の項目に入らない大事なこと。無ければ空文字"}]}
 type: 大会・試合・TM・カップ戦・リーグは試合、グラウンド名と時間だけの記載は練習。
 同じ日に練習と試合が並んでいたら別々の予定にする。
+startTime は集合の時刻（集合が書かれていなければ開始の時刻）、endTime は解散・終了の時刻。キックオフなど途中の時刻は memo に書く。
 時刻・場所は、その予定の記載にあるものだけを入れる（推測で埋めない）。
 title は「練習」「市リーグ 第5節」「〇〇カップ」のように短く。`;
 
@@ -49,7 +50,6 @@ export default async function handler(req, res) {
     date: /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : '',
     type: ['練習', '試合', 'その他'].includes(e.type) ? e.type : 'その他',
     title: String(e.title || '').slice(0, 60),
-    gatherTime: /^\d{2}:\d{2}$/.test(e.gatherTime) ? e.gatherTime : '',
     startTime: /^\d{2}:\d{2}$/.test(e.startTime) ? e.startTime : '',
     endTime: /^\d{2}:\d{2}$/.test(e.endTime) ? e.endTime : '',
     location: String(e.location || '').slice(0, 80),
