@@ -38,28 +38,31 @@ export function ToastProvider({ children }) {
 }
 
 /* ---------- 下から出るシート ---------- */
-export function Sheet({ open, onClose, title, children }) {
+// bare: 見出しと×を出さず、中身が自分で見出しを持つ（予定の追加画面）。高さも画面いっぱい近くまで取る
+export function Sheet({ open, onClose, title, bare, children }) {
   return (
     <AnimatePresence>
-      {open && <SheetBody onClose={onClose} title={title}>{children}</SheetBody>}
+      {open && <SheetBody onClose={onClose} title={title} bare={bare}>{children}</SheetBody>}
     </AnimatePresence>
   );
 }
 
 // LINEの中では下スワイプがLINEの画面を閉じる操作と取り合うので、シートは×ボタンか外側のタップで閉じる
-function SheetBody({ onClose, title, children }) {
+function SheetBody({ onClose, title, bare, children }) {
   return (
     <div className="fixed inset-0 z-50">
       <motion.div className="absolute inset-0 bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.div
-        className="absolute inset-x-0 bottom-0 mx-auto max-w-[480px] bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[92%]"
+        className={`absolute inset-x-0 bottom-0 mx-auto max-w-[480px] bg-white rounded-t-3xl shadow-2xl flex flex-col ${bare ? 'h-[94%]' : 'max-h-[92%]'}`}
         initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={spring}
       >
-        <div className="px-4 pt-4 pb-3 flex items-start gap-3">
-          {title && <h3 className="font-bold text-base flex-1">{title}</h3>}
-          <button onClick={onClose} aria-label="閉じる" className="ml-auto -mt-1 w-9 h-9 rounded-full bg-gray-100 grid place-items-center shrink-0"><X className="w-5 h-5 text-gray-600" /></button>
-        </div>
-        <div className="overflow-y-auto overscroll-contain px-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>{children}</div>
+        {!bare && (
+          <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+            {title && <h3 className="font-bold text-base flex-1">{title}</h3>}
+            <button onClick={onClose} aria-label="閉じる" className="ml-auto -mt-1 w-9 h-9 rounded-full bg-gray-100 grid place-items-center shrink-0"><X className="w-5 h-5 text-gray-600" /></button>
+          </div>
+        )}
+        <div className={`overflow-y-auto overscroll-contain ${bare ? 'flex-1' : 'px-4'}`} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>{children}</div>
       </motion.div>
     </div>
   );

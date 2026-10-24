@@ -6,3 +6,6 @@
 .liff-skel { background: linear-gradient(90deg, #eceff1 25%, #f7f8f9 45%, #eceff1 65%); background-size: 300% 100%; animation: liff-skel 1.3s linear infinite; }
 @keyframes liff-skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .liff-skel { animation: none; } }
+/* 予定の追加画面：iPhoneの日付・時刻欄が横幅を取りすぎて重ならないように、枠なし・左寄せにする */
+.liff-plain { -webkit-appearance: none; appearance: none; min-width: 0; }
+.liff-plain::-webkit-date-and-time-value { text-align: left; }

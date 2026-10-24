@@ -26,6 +26,15 @@ export const defaultDeadline = (e) => addDays(e.date, -(DEFAULT_DEADLINE_DAYS[e.
 export const deadlineOf = (e) => e.answerDeadline || defaultDeadline(e);
 export const isClosed = (e) => todayJst() > deadlineOf(e);
 
+// 一覧の区切り：今週の日曜までは「今週末」、その次の日曜までは「来週」、その先は「11月」のように月ごと
+export const groupLabel = (s) => {
+  const t = todayJst();
+  const thisSun = addDays(t, (7 - parseDate(t).getDay()) % 7);
+  if (s <= thisSun) return '今週末';
+  if (s <= addDays(thisSun, 7)) return '来週';
+  return `${parseDate(s).getMonth() + 1}月`;
+};
+
 // 締切を変えられるのは役割を持つコーチ（配車担当・案内係）と管理者
 export const canEditDeadline = (has) => has('ride') || has('guide') || has('admin');
 

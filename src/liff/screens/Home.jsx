@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil, Bell, X, Paperclip } from 'lucide-react';
+import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Pencil, Bell, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
-import { upcomingEvents, md, dateLabel, timeLabel, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
+import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
-const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-700' : e.type === '練習' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600';
+// 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
+const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-900' : e.type === '練習' ? 'bg-green-100 text-green-900' : 'bg-blue-100 text-blue-900';
 
 export default function Home({ ctx, open }) {
   const { data, myKid } = ctx;
@@ -16,6 +17,11 @@ export default function Home({ ctx, open }) {
   const [editing, setEditing] = useState(null);
   const selectedEvent = data.events.find((e) => e.id === selected);
   const editor = canEditDeadline(ctx.has);
+  const groups = [];
+  for (const e of events) {
+    const g = groupLabel(e.date);
+    if (groups.at(-1)?.[0] === g) groups.at(-1)[1].push(e); else groups.push([g, [e]]);
+  }
 
   return (
     <div>
@@ -34,9 +40,17 @@ export default function Home({ ctx, open }) {
 
       {events.length === 0 && <p className="text-center text-sm text-gray-400 py-16">この先6週間の予定はまだありません</p>}
 
-      <motion.ul className="p-3 space-y-3" variants={listVariants} initial="hidden" animate="show">
-        {events.map((e) => <EventCard key={e.id} e={e} ctx={ctx} status={att(e.id)} onOpen={() => setSelected(e.id)} />)}
-      </motion.ul>
+      {/* Gmailの受信トレイ風：区切りの見出しごとに、角を丸めた白い行を詰めて並べる（2026-10-24 ユーザー決定） */}
+      <div className="pb-3">
+        {groups.map(([label, list]) => (
+          <section key={label}>
+            <h3 className="text-xs text-gray-500 px-4 pt-4 pb-1.5">{label}</h3>
+            <motion.ul className="px-1.5 space-y-[3px]" variants={listVariants} initial="hidden" animate="show">
+              {list.map((e, i) => <EventRow key={e.id} e={e} ctx={ctx} status={att(e.id)} first={i === 0} last={i === list.length - 1} onOpen={() => setSelected(e.id)} />)}
+            </motion.ul>
+          </section>
+        ))}
+      </div>
 
       <Sheet open={!!selectedEvent} onClose={() => setSelected(null)} title={selectedEvent && `${dateLabel(selectedEvent.date)} ${selectedEvent.title}`}>
         {selectedEvent && <EventDetail e={selectedEvent} ctx={ctx} open={open} onEdit={() => { setEditing(selectedEvent); setSelected(null); }} />}
@@ -44,9 +58,9 @@ export default function Home({ ctx, open }) {
 
       {editor && (
         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} transition={spring} whileTap={{ scale: 0.9 }} onClick={() => setEditing('new')}
-          className="fixed right-4 z-20 bg-emerald-600 text-white rounded-full shadow-lg pl-3 pr-4 py-3 font-bold text-sm flex items-center gap-1"
+          className="fixed right-4 z-20 bg-sky-100 text-sky-950 rounded-2xl shadow-md px-5 py-4 font-bold text-[15px] flex items-center gap-2.5"
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}>
-          <Plus className="w-5 h-5" />予定を追加
+          <Pencil className="w-5 h-5" />予定を追加
         </motion.button>
       )}
       {editor && <EventEditor ctx={ctx} open={!!editing} event={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
@@ -79,28 +93,32 @@ function FriendBanner({ ctx }) {
   );
 }
 
-function EventCard({ e, ctx, status, onOpen }) {
-  const { myKid } = ctx;
+// 1行目：タイトルと開始時刻／2行目：時間と場所／3行目：メモの書き出し（無ければ参加人数）。
+// うちの子が未回答の予定は、Gmailの未読と同じく太字＋青い点。出欠の切り替えは右下（Gmailの星の位置）
+function EventRow({ e, ctx, status, first, last, onOpen }) {
+  const { myKid, data } = ctx;
   const d = md(e.date);
   const canceled = isCanceled(e);
+  const closed = isClosed(e);
+  const unread = !!myKid && !canceled && !closed && !status;
+  const count = data.attendances.filter((a) => a.eventId === e.id && a.status === '参加').length;
+  const memo = (e.memo || '').split('\n').find((l) => l.trim()) || '';
+  const third = unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
   return (
-    <motion.li variants={itemVariants} className={`bg-white rounded-2xl p-3 shadow-sm border border-gray-100 grid grid-cols-[44px_1fr] gap-3 ${canceled ? 'opacity-60' : ''}`}>
-      <button onClick={onOpen} className="text-center border-r border-gray-100 pr-2">
-        <p className="text-[11px] text-gray-500">{d.m}月</p><p className="text-2xl font-black tabular-nums leading-tight">{d.d}</p><p className="text-[11px] text-gray-500">({d.w})</p>
-      </button>
-      <div className="min-w-0">
-        <div className="flex items-start gap-2">
-          <button onClick={onOpen} className="flex-1 min-w-0 text-left">
-            <span className="flex items-center gap-1.5">
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 ${typeStyle(e)}`}>{e.type || 'その他'}</span>
-              <span className={`font-bold truncate ${canceled ? 'line-through' : ''}`}>{e.title}</span>
-            </span>
-            <span className="block text-xs text-gray-500 mt-1 truncate">{[timeLabel(e), e.location].filter(Boolean).join(' ・ ') || '詳細を見る'}</span>
-          </button>
-          {myKid && !canceled && <AttendSwitch e={e} ctx={ctx} status={status} />}
-        </div>
-        {myKid && !canceled && <DeadlineNote e={e} status={status} />}
+    <motion.li variants={itemVariants} onClick={onOpen}
+      className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 cursor-pointer active:bg-gray-100 ${first ? 'rounded-t-2xl' : 'rounded-t'} ${last ? 'rounded-b-2xl' : 'rounded-b'}`}>
+      <div className={`row-span-3 self-start w-[46px] h-[46px] rounded-full grid place-items-center text-center leading-none ${typeStyle(e)}`}>
+        <div><span className="block text-[9px]">{d.m}月</span><b className="block text-[17px] tabular-nums my-px">{d.d}</b><span className="block text-[9px]">{d.w}</span></div>
       </div>
+      <p className={`min-w-0 truncate text-base ${unread ? 'font-bold' : ''} ${canceled ? 'line-through text-gray-400' : ''}`}>{e.title}</p>
+      <p className={`flex items-center gap-1.5 text-xs tabular-nums ${unread ? 'font-bold text-gray-900' : 'text-gray-500'}`}>{startOf(e)}{unread && <span className="w-[9px] h-[9px] rounded-full bg-blue-600" />}</p>
+      <p className={`min-w-0 truncate text-sm mt-0.5 ${unread ? 'font-bold' : ''} ${canceled ? 'line-through text-gray-400' : ''}`}>{[timeLabel(e), e.location].filter(Boolean).join('　') || '詳細を見る'}</p>
+      <div className="row-span-2 self-end justify-self-end" onClick={(ev) => ev.stopPropagation()}>
+        {myKid && !canceled && (closed
+          ? <span className="flex items-center gap-1 text-xs text-gray-500"><Lock className="w-3.5 h-3.5" />{status ? `${status}・締切済` : 'コーチに連絡'}</span>
+          : <AttendSwitch e={e} ctx={ctx} status={status} />)}
+      </div>
+      <p className={`min-w-0 truncate text-[13px] mt-1 ${unread ? 'text-amber-700' : 'text-gray-500'}`}>{third}</p>
     </motion.li>
   );
 }

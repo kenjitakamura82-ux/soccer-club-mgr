@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Sparkles, Loader2, Plus, Ban } from 'lucide-react';
-import { Sheet, Press, Segmented, useShake, useToast, spring } from '../ui.jsx';
+import { Sparkles, Loader2, Ban, X, ChevronDown } from 'lucide-react';
+import { Sheet, Press, useShake, useToast, spring } from '../ui.jsx';
 import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf } from '../util.js';
 
 // 「AIで読み取る」は使うAIを決めるまで「準備中」で押せない。Vercel の環境変数 VITE_AI_PARSE=on で使える（開発の見本データでは常に使える）
@@ -15,9 +15,10 @@ const pick = (e) => ({ ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e
 const startKeyOf = (e) => (e?.gatherTime ? 'gatherTime' : 'startTime');
 
 // 予定の追加・修正（配車担当・案内係・管理者）。新規はAIで文章から読み取って入力欄を埋められる
+// 見た目はGmailの「作成」画面に合わせる（2026-10-24 ユーザー決定）：×・見出し・右上の保存、枠なしの1行ずつの入力欄、下にメモ
 export default function EventEditor({ ctx, event, open, onClose }) {
   return (
-    <Sheet open={open} onClose={onClose} title={event ? '予定を直す' : '予定を追加'}>
+    <Sheet open={open} onClose={onClose} bare>
       {open && <EditorBody key={event?.id || 'new'} ctx={ctx} event={event} onClose={onClose} />}
     </Sheet>
   );
@@ -65,71 +66,83 @@ function EditorBody({ ctx, event, onClose }) {
     onClose();
   };
 
-  const input = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-base bg-white outline-none focus:ring-2 focus:ring-emerald-500';
-  const field = (label, el) => <label className="block"><span className="text-xs text-gray-500">{label}</span>{el}</label>;
+  // 1行に「項目名｜入力」。横に2つ並べると iPhone の日付欄がはみ出して重なるので、全部1行ずつにする
+  const plain = 'liff-plain w-full bg-transparent border-0 outline-none text-base py-3 text-gray-900 placeholder:text-gray-400';
+  const row = (label, el, id) => (
+    <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-2 min-h-[52px] px-4 border-b border-gray-100 focus-within:border-blue-600">
+      {id ? <label htmlFor={id} className="text-sm text-gray-500">{label}</label> : <span className="text-sm text-gray-500">{label}</span>}
+      {el}
+    </div>
+  );
+  const typeChip = (t) => (
+    <button key={t} type="button" onClick={() => set('type')(t)} aria-pressed={f.type === t}
+      className={`rounded-lg px-3.5 py-1.5 text-sm border transition-colors ${f.type === t ? 'bg-blue-100 text-blue-900 font-bold border-transparent' : 'border-gray-200 text-gray-700'}`}>{t}</button>
+  );
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="text-sm">
+      <div className="sticky top-0 z-10 bg-white flex items-center gap-2 px-2.5 pt-3 pb-2">
+        <button onClick={onClose} aria-label="閉じる" className="w-10 h-10 rounded-full grid place-items-center active:bg-gray-100"><X className="w-[22px] h-[22px] text-gray-700" /></button>
+        <h3 className="flex-1 text-lg font-bold">{event ? '予定を直す' : '予定を追加'}</h3>
+        <Press onClick={save} disabled={saving} className="bg-blue-600 text-white rounded-full px-5 py-2 font-bold disabled:opacity-60">{saving ? '保存中…' : event ? '保存' : '追加'}</Press>
+      </div>
+
       {!event && <AiBox ctx={ctx} onResults={(list) => { setResults(list); if (list[0]) fill(list[0]); }} />}
 
       <AnimatePresence>
         {results.length > 1 && (
-          <motion.section initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="bg-emerald-50 rounded-2xl p-3 space-y-2">
-              <p className="font-bold text-emerald-800">{results.length}件の予定が見つかりました</p>
+          <motion.section initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden px-3 pb-2">
+            <div className="bg-blue-50 rounded-2xl p-3 space-y-2">
+              <p className="font-bold text-blue-900">{results.length}件の予定が見つかりました</p>
               {results.map((r, i) => (
-                <button key={i} onClick={() => fill(r)} className="w-full text-left bg-white rounded-xl px-3 py-2 border border-emerald-100">
+                <button key={i} onClick={() => fill(r)} className="w-full text-left bg-white rounded-xl px-3 py-2">
                   <b>{dateLabel(r.date)} {r.title}</b><span className="block text-xs text-gray-500">{[timeLabel(r), r.location].filter(Boolean).join(' ・ ')}</span>
                 </button>
               ))}
-              <Press onClick={addAll} disabled={saving} className="w-full bg-emerald-600 text-white rounded-xl py-2.5 font-bold disabled:opacity-60">{saving ? '追加中…' : `${results.length}件まとめて追加`}</Press>
-              <p className="text-[11px] text-emerald-800">1件ずつ直したいときは、押すと下の入力欄に入ります</p>
+              <Press onClick={addAll} disabled={saving} className="w-full bg-blue-600 text-white rounded-full py-2.5 font-bold disabled:opacity-60">{saving ? '追加中…' : `${results.length}件まとめて追加`}</Press>
+              <p className="text-[11px] text-blue-900">1件ずつ直したいときは、押すと下の入力欄に入ります</p>
             </div>
           </motion.section>
         )}
       </AnimatePresence>
 
-      <motion.div ref={scope} key={flash} initial={flash ? { backgroundColor: '#ecfdf5' } : false} animate={{ backgroundColor: 'rgba(255,255,255,0)' }} transition={{ duration: 1.2 }} className="space-y-3 rounded-2xl">
-        <div className="grid grid-cols-2 gap-2">
-          {field('日付', <input type="date" className={input} value={f.date} onChange={set('date')} />)}
-          {field('出欠の締切', <input type="date" className={input} value={f.answerDeadline} max={f.date} onChange={set('answerDeadline')} />)}
-        </div>
-        {f.date && !f.answerDeadline && <p className="text-[11px] text-gray-500 -mt-2">締切が空なら {dateLabel(defaultDeadline(f))}（{f.type === '試合' ? '2週間前' : '3日前'}）</p>}
-        <div><span className="text-xs text-gray-500">種別</span><Segmented id="ev-type" value={f.type} onChange={set('type')} options={[{ value: '練習', label: '練習' }, { value: '試合', label: '試合' }, { value: 'その他', label: 'その他' }]} /></div>
-        {field('タイトル', <input className={input} value={f.title} onChange={set('title')} placeholder="例：練習、市リーグ 第5節" />)}
-        <div className="grid grid-cols-2 gap-2">
-          {field('開始（集合）', <input type="time" className={input} value={f.startTime} onChange={set('startTime')} />)}
-          {field('終了（解散）', <input type="time" className={input} value={f.endTime} onChange={set('endTime')} />)}
-        </div>
-        {field('場所', <input className={input} value={f.location} onChange={set('location')} placeholder="例：柏の葉小 第二グラウンド" />)}
-        {field('メモ（持ち物・注意など）', <textarea className={`${input} h-20`} value={f.memo} onChange={set('memo')} />)}
+      <motion.div ref={scope} key={flash} initial={flash ? { backgroundColor: '#eff6ff' } : false} animate={{ backgroundColor: 'rgba(255,255,255,0)' }} transition={{ duration: 1.2 }}>
+        {row('タイトル', <input id="ev-title" className={`${plain} text-lg font-bold placeholder:font-normal placeholder:text-base`} value={f.title} onChange={set('title')} placeholder="例：練習、市リーグ 第5節" />, 'ev-title')}
+        {row('種別', <div className="flex flex-wrap gap-1.5 py-2">{['練習', '試合', 'その他'].map(typeChip)}</div>)}
+        {row('日付', <input id="ev-date" type="date" className={plain} value={f.date} onChange={set('date')} />, 'ev-date')}
+        {row('開始（集合）', <input id="ev-start" type="time" className={plain} value={f.startTime} onChange={set('startTime')} />, 'ev-start')}
+        {row('終了（解散）', <input id="ev-end" type="time" className={plain} value={f.endTime} onChange={set('endTime')} />, 'ev-end')}
+        {row('場所', <input id="ev-place" className={plain} value={f.location} onChange={set('location')} placeholder="例：柏の葉小 第二グラウンド" />, 'ev-place')}
+        {row('出欠の締切', <input id="ev-deadline" type="date" className={plain} value={f.answerDeadline} max={f.date} onChange={set('answerDeadline')} />, 'ev-deadline')}
+        {f.date && !f.answerDeadline && <p className="text-xs text-gray-500 pl-[120px] pr-4 pt-1.5">空なら {dateLabel(defaultDeadline(f))}（{f.type === '試合' ? '2週間前' : '3日前'}）</p>}
+        <textarea aria-label="メモ（持ち物・注意など）" className="block w-full min-h-[160px] border-0 outline-none resize-none bg-transparent text-base leading-relaxed p-4" value={f.memo} onChange={set('memo')} placeholder="メモ（持ち物・注意など）" />
       </motion.div>
 
-      {sameDay.length > 0 && <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">同じ日に「{sameDay.map((e) => e.title).join('」「')}」があります。二重登録になっていないか確かめてください</p>}
-      <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
+      <div className="px-4 space-y-3">
+        {sameDay.length > 0 && <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">同じ日に「{sameDay.map((e) => e.title).join('」「')}」があります。二重登録になっていないか確かめてください</p>}
+        <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
 
-      <Press onClick={save} disabled={saving} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold disabled:opacity-60 flex items-center justify-center gap-1.5">
-        {!event && <Plus className="w-4 h-4" />}{saving ? '保存中…' : event ? '保存' : 'この内容で追加'}
-      </Press>
-
-      {event && !isCanceled(event) && (
-        <div>
-          {!confirmCancel
-            ? <button onClick={() => setConfirmCancel(true)} className="w-full flex items-center justify-center gap-1.5 text-red-600 text-sm py-2"><Ban className="w-4 h-4" />この予定を中止にする</button>
-            : (
-              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 rounded-xl p-3 text-red-700">
-                <p className="font-bold">中止にしますか？</p>
-                <p className="text-xs mt-0.5">タイトルの頭に【中止】が付いて、一覧に取り消し線で残ります。グループへの連絡は別にしてください。</p>
-                <div className="flex gap-2 mt-2"><Press onClick={cancelEvent} className="flex-1 bg-red-600 text-white rounded-lg py-2 font-bold">中止にする</Press><Press onClick={() => setConfirmCancel(false)} className="flex-1 bg-white border border-red-200 rounded-lg py-2 font-bold">やめる</Press></div>
-              </motion.div>
-            )}
-        </div>
-      )}
+        {event && !isCanceled(event) && (
+          <div>
+            {!confirmCancel
+              ? <button onClick={() => setConfirmCancel(true)} className="w-full flex items-center justify-center gap-1.5 text-red-600 text-sm py-2"><Ban className="w-4 h-4" />この予定を中止にする</button>
+              : (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 rounded-xl p-3 text-red-700">
+                  <p className="font-bold">中止にしますか？</p>
+                  <p className="text-xs mt-0.5">タイトルの頭に【中止】が付いて、一覧に取り消し線で残ります。グループへの連絡は別にしてください。</p>
+                  <div className="flex gap-2 mt-2"><Press onClick={cancelEvent} className="flex-1 bg-red-600 text-white rounded-lg py-2 font-bold">中止にする</Press><Press onClick={() => setConfirmCancel(false)} className="flex-1 bg-white border border-red-200 rounded-lg py-2 font-bold">やめる</Press></div>
+                </motion.div>
+              )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+// 1行だけ見せて、押すと貼り付け欄が開く。使えない間は「準備中」で開かない
 function AiBox({ ctx, onResults }) {
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -144,16 +157,26 @@ function AiBox({ ctx, onResults }) {
     setBusy(false);
   };
   return (
-    <section className="rounded-2xl p-3 bg-gradient-to-br from-emerald-50 to-sky-50 border border-emerald-100 space-y-2">
-      <h4 className="font-bold text-emerald-800 flex items-center gap-1.5"><Sparkles className="w-4 h-4" />AIで読み取る{!AI_ENABLED && <span className="ml-1 text-[11px] font-bold bg-white text-gray-500 border border-gray-200 rounded-full px-2 py-0.5">準備中</span>}</h4>
-      <p className="text-xs text-emerald-900">メモ書きでOK。日付さえ入っていれば、時間・場所・持ち物はAIが入力欄に振り分けます。LINEの連絡をそのまま貼っても大丈夫。</p>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} disabled={!AI_ENABLED} className="w-full border border-emerald-100 rounded-xl p-3 text-base h-24 bg-white outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50"
-        placeholder="例：来週土曜 練習 9時〜 柏の葉小 水筒多め" />
-      <Press onClick={run} disabled={!AI_ENABLED || busy || !text.trim()} className="w-full bg-emerald-700 text-white rounded-xl py-2.5 font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
-        {busy ? <><Loader2 className="w-4 h-4 animate-spin" />読み取り中…</> : <><Sparkles className="w-4 h-4" />読み取って入力欄に入れる</>}
-      </Press>
-      {!AI_ENABLED && <p className="text-xs text-gray-500">まだ使えません。今は下の入力欄に直接入れてください。</p>}
-      <AnimatePresence>{msg && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={spring} className="text-xs text-emerald-800">{msg}</motion.p>}</AnimatePresence>
+    <section className="mx-3 mb-2 rounded-2xl bg-gray-100">
+      <button type="button" onClick={() => AI_ENABLED && setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-3 px-3.5 py-3 text-left">
+        <Sparkles className="w-5 h-5 text-gray-500 shrink-0" />
+        <span className="flex-1 min-w-0 font-bold">AIで読み取る<span className="block font-normal text-xs text-gray-500 mt-0.5">メモ書きでOK。日付さえ入っていれば、何件でもまとめて入力欄に振り分けます</span></span>
+        {AI_ENABLED ? <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} /> : <span className="text-[11px] text-gray-500 border border-gray-300 rounded-full px-2 py-0.5 shrink-0">準備中</span>}
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden">
+            <div className="px-3 pb-3 space-y-2">
+              <textarea value={text} onChange={(e) => setText(e.target.value)} className="w-full rounded-xl p-3 text-base h-24 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例：来週土曜 練習 9時〜 柏の葉小 水筒多め（LINEの連絡をそのまま貼っても大丈夫）" />
+              <Press onClick={run} disabled={busy || !text.trim()} className="w-full bg-blue-600 text-white rounded-full py-2.5 font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {busy ? <><Loader2 className="w-4 h-4 animate-spin" />読み取り中…</> : <><Sparkles className="w-4 h-4" />読み取って入力欄に入れる</>}
+              </Press>
+              <AnimatePresence>{msg && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={spring} className="text-xs text-gray-700">{msg}</motion.p>}</AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
