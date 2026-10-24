@@ -16,6 +16,8 @@ jobs:
       - run: npm run build
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+      # gh-pages ブランチは GitHub Pages 用の出来上がりなので、Vercel には作らせない（毎回失敗してメールが来ていた）
+      - run: echo '{"git":{"deploymentEnabled":false}}' > dist/vercel.json
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

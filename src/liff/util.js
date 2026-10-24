@@ -11,8 +11,8 @@ export const isCanceled = (e) => e.title?.includes('中止') || e.title?.include
 // 既存アプリや line-schedule-bot が入れた集合時刻（gatherTime）があれば、それを開始として扱う
 export const startOf = (e) => e.gatherTime || e.startTime || '';
 export const timeLabel = (e) => { const s = startOf(e), t = e.endTime || ''; return s ? `${s}〜${t}` : t ? `〜${t}` : ''; };
-// 練習は車出しがないので、配車（希望の入力・配車まとめ）の対象から外す
-export const needsRide = (e) => e.type !== '練習' && !isCanceled(e);
+// 配車（希望の入力・配車まとめ）が要るのは試合だけ。練習・その他は車出しがない（2026-10-25 ユーザー決定）
+export const needsRide = (e) => e.type === '試合' && !isCanceled(e);
 // 選抜（2026-10-25 ユーザー決定）。予定に selection: true が付いた試合は、選抜担当が選んだ子（selections/{予定のID} の studentIds）だけが出て、配車もその子たちだけで組む
 export const selectionOf = (data, eventId) => (data.selections || []).find((s) => s.id === eventId) || null;
 // 配車の対象になる子か。選抜ありなら、確定して選ばれた子だけ
@@ -251,6 +251,31 @@ export function selectionFlex(event, names, liffUrl) {
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: '配車の希望を入れる', uri: liffUrl } },
+      ] },
+    },
+  };
+}
+
+// 出欠・配車の希望がまだの家族への催促。配車担当が「人を選んで送る」で送る（公式アカウントからの個別リマインドの代わり。2026-10-25 ユーザー決定）
+export function nudgeFlex(event, unanswered, noWish, liffUrl) {
+  const line = (label, names) => (names.length ? [
+    { type: 'text', text: label, size: 'xs', color: '#b45309', weight: 'bold', margin: 'md' },
+    { type: 'text', text: names.join('、'), size: 'sm', wrap: true },
+  ] : []);
+  return {
+    type: 'flex',
+    altText: `出欠・配車の希望のお願い：${dateLabel(event.date)} ${event.title}`,
+    contents: {
+      type: 'bubble',
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', action: { type: 'uri', label: '開く', uri: liffUrl }, contents: [
+        { type: 'text', text: '回答のお願い', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: `締切は ${dateLabel(deadlineOf(event))} です。`, size: 'xs', color: '#555555' },
+        ...line('出欠がまだ', unanswered),
+        ...line('配車の希望がまだ', noWish),
+      ] },
+      footer: { type: 'box', layout: 'vertical', contents: [
+        { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで回答する', uri: liffUrl } },
       ] },
     },
   };

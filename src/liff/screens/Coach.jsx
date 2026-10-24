@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
-import { Car, Share2, Wand2, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Car, Share2, Wand2, ClipboardList, AlertTriangle, Send, BellRing } from 'lucide-react';
 import { Press, useToast, spring } from '../ui.jsx';
-import { upcomingEvents, needsRide, dateLabel, matchRides, kidName, ridePlanFlex, selectionOf, inRide } from '../util.js';
+import { upcomingEvents, needsRide, dateLabel, matchRides, kidName, ridePlanFlex, selectionOf, inRide, jersey, nudgeFlex } from '../util.js';
 
 export default function Coach({ ctx }) {
   const events = upcomingEvents(ctx.data.events, 21).filter(needsRide);
@@ -18,11 +18,40 @@ export default function Coach({ ctx }) {
           </Press>
         ))}
       </div>
+      <Nudge key={`n-${event.id}`} ctx={ctx} event={event} />
       {/* 予定を切り替えたら作業中の割り振りも作り直す */}
       {event.selection && !selectionOf(ctx.data, event.id)
         ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は選抜ありです。選抜担当が出る子を確定すると、選ばれた子だけで配車を組めます。</p>
         : <Planner key={event.id} ctx={ctx} event={event} />}
     </div>
+  );
+}
+
+// 出欠・配車の希望がまだの家族。配車担当が送り先（全体LINEや本人）を選んで催促を送る
+function Nudge({ ctx, event }) {
+  const { data, actions } = ctx;
+  const toast = useToast();
+  const kids = data.students.filter((s) => !s.id.startsWith('coach_')).sort((a, b) => jersey(a) - jersey(b));
+  const att = (sid) => data.attendances.find((a) => a.eventId === event.id && a.studentId === sid)?.status;
+  const unanswered = kids.filter((s) => !att(s.id)).map((s) => s.childName);
+  const noWish = kids.filter((s) => att(s.id) === '参加' && inRide(event, data, s.id) && !data.rides.some((r) => r.eventId === event.id && r.studentId === s.id)).map((s) => s.childName);
+  if (!unanswered.length && !noWish.length) return null;
+  const send = async () => {
+    try {
+      const r = await actions.shareTargetPicker([nudgeFlex(event, unanswered, noWish, actions.liffUrl())]);
+      if (r) toast('催促を送りました');
+    } catch (e) { toast('送れませんでした', e.message); }
+  };
+  return (
+    <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-sm space-y-2">
+      <h3 className="font-bold flex items-center gap-2"><BellRing className="w-5 h-5 text-amber-600" />回答がまだの家族</h3>
+      <dl className="grid grid-cols-[7.5em_1fr] gap-y-1.5">
+        {unanswered.length > 0 && <><dt className="text-gray-500">出欠がまだ</dt><dd>{unanswered.length}人：{unanswered.join('、')}</dd></>}
+        {noWish.length > 0 && <><dt className="text-gray-500">配車の希望がまだ</dt><dd>{noWish.length}人：{noWish.join('、')}</dd></>}
+      </dl>
+      <Press onClick={send} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-2.5 font-bold"><Send className="w-4 h-4" />催促を送る</Press>
+      <p className="text-[11px] text-gray-500">送り先を選ぶ画面が出ます。全体LINEでも、本人への1対1でも送れます。</p>
+    </section>
   );
 }
 
