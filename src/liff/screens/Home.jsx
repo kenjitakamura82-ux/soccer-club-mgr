@@ -343,7 +343,7 @@ function RideForm({ e, ctx }) {
       <motion.div layout transition={spring} className="space-y-3 overflow-hidden">
         {role === 'driver' && (
           <>
-            <div><p className="text-xs text-gray-500 mb-2">子どもを何人乗せられる？（自分の子も含めて）</p><Stepper value={seats} onChange={setSeats} min={2} max={7} /></div>
+            <div><p className="text-xs text-gray-500 mb-2">何人乗せられる？（自分の子も含めて）</p><Stepper value={seats} onChange={setSeats} min={2} max={7} /></div>
             <div><p className="text-xs text-gray-500 mb-2">ほかの車に乗り合わせることになったら、何人乗せてほしい？</p><Stepper value={mergedCount} onChange={setMergedCount} min={1} max={4} upTo={false} /></div>
           </>
         )}

@@ -154,8 +154,8 @@ export function Stepper({ value, min = 1, max = 6, onChange, unit = '人', upTo 
       <span className="relative inline-grid overflow-hidden text-3xl font-black tabular-nums h-10 w-10 place-items-center">
         <AnimatePresence initial={false} custom={dir}>
           <motion.span key={value} custom={dir} className="col-start-1 row-start-1"
-            variants={{ enter: (d) => ({ y: d * 30, opacity: 0 }), center: { y: 0, opacity: 1 }, exit: (d) => ({ y: -d * 30, opacity: 0 }) }}
-            initial="enter" animate="center" exit="exit" transition={spring}>{value}</motion.span>
+            variants={{ enter: (d) => ({ y: d * 18, opacity: 0 }), center: { y: 0, opacity: 1, transition: { duration: 0.18, ease: 'easeOut' } }, exit: (d) => ({ y: -d * 18, opacity: 0, transition: { duration: 0.1, ease: 'easeIn' } }) }}
+            initial="enter" animate="center" exit="exit">{value}</motion.span>
         </AnimatePresence>
       </span>
       <Press type="button" onClick={() => step(1)} aria-label="増やす" className="w-11 h-11 rounded-full border-2 border-gray-200 grid place-items-center bg-white"><Plus className="w-5 h-5" /></Press>
