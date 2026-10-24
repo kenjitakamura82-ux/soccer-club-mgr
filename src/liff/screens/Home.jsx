@@ -340,7 +340,7 @@ function RideForm({ e, ctx }) {
   return (
     <section className="bg-gray-50 rounded-2xl p-3 space-y-3">
       <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Car className="w-4 h-4" />配車の希望</h4>
-      <Segmented id={`ride-${e.id}`} value={role} onChange={setRole} options={[{ value: 'driver', label: '車を出せる' }, { value: 'rider', label: '乗せてほしい' }, { value: 'none', label: '不要' }]} />
+      <Segmented id={`ride-${e.id}`} value={role} onChange={setRole} options={[{ value: 'driver', label: '車を出せる' }, { value: 'rider', label: '乗せてほしい' }, { value: 'none', label: '自分で向かう' }]} />
       <motion.div layout transition={spring} className="space-y-3 overflow-hidden">
         {role === 'driver' && (
           <>
