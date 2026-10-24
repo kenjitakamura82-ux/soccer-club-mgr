@@ -38,7 +38,7 @@ function Nudge({ ctx, event }) {
   if (!unanswered.length && !noWish.length) return null;
   const send = async () => {
     try {
-      const r = await actions.shareTargetPicker([nudgeFlex(event, unanswered, noWish, actions.liffUrl())]);
+      const r = await actions.shareTargetPicker([nudgeFlex(event, unanswered.length ? 'attendance' : 'ride', actions.liffUrl())]);
       if (r) toast('催促を送りました');
     } catch (e) { toast('送れませんでした', e.message); }
   };
@@ -50,7 +50,7 @@ function Nudge({ ctx, event }) {
         {noWish.length > 0 && <><dt className="text-gray-500">配車の希望がまだ</dt><dd>{noWish.length}人：{noWish.join('、')}</dd></>}
       </dl>
       <Press onClick={send} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-2.5 font-bold"><Send className="w-4 h-4" />催促を送る</Press>
-      <p className="text-[11px] text-gray-500">送り先を選ぶ画面が出ます。全体LINEでも、本人への1対1でも送れます。</p>
+      <p className="text-[11px] text-gray-500">送り先を選ぶ画面が出ます。全体LINEでも、本人への1対1でも送れます。送るお知らせには名前は載りません（名前はこの画面だけ）。</p>
     </section>
   );
 }

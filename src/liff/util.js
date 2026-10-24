@@ -247,7 +247,7 @@ export function selectionFlex(event, names, liffUrl) {
         { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
         { type: 'separator', margin: 'md' },
         { type: 'text', text: `${names.length}人：${names.join('、')}`, size: 'sm', wrap: true, margin: 'md' },
-        { type: 'text', text: '選ばれた子のご家族は、アプリで配車の希望を入れてください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
+        { type: 'text', text: '上記の子のご家族は、アプリで配車の希望を入れてください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: '配車の希望を入れる', uri: liffUrl } },
@@ -256,26 +256,30 @@ export function selectionFlex(event, names, liffUrl) {
   };
 }
 
-// 出欠・配車の希望がまだの家族への催促。配車担当が「人を選んで送る」で送る（公式アカウントからの個別リマインドの代わり。2026-10-25 ユーザー決定）
-export function nudgeFlex(event, unanswered, noWish, liffUrl) {
-  const line = (label, names) => (names.length ? [
-    { type: 'text', text: label, size: 'xs', color: '#b45309', weight: 'bold', margin: 'md' },
-    { type: 'text', text: names.join('、'), size: 'sm', wrap: true },
-  ] : []);
+// 出欠・配車の希望がまだの家族への催促。配車担当が「人を選んで送る」で送る（公式アカウントからの個別リマインドの代わり。2026-10-25 ユーザー決定）。
+// 締切前に名前が出ると気まずいので、まだの子の名前は載せない（2026-10-25 ユーザー決定）。what は 'attendance'（出欠もまだの人がいる）か 'ride'（配車の希望だけ）
+export function nudgeFlex(event, what, liffUrl) {
+  const ask = what === 'ride' ? '配車の希望' : '出欠と配車の希望';
+  const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
   return {
     type: 'flex',
-    altText: `出欠・配車の希望のお願い：${dateLabel(event.date)} ${event.title}`,
+    altText: `${ask}のお願い：${dateLabel(event.date)} ${event.title}`,
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', action: { type: 'uri', label: '開く', uri: liffUrl }, contents: [
-        { type: 'text', text: '回答のお願い', size: 'xs', color: '#059669', weight: 'bold' },
-        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
-        { type: 'text', text: `締切は ${dateLabel(deadlineOf(event))} です。`, size: 'xs', color: '#555555' },
-        ...line('出欠がまだ', unanswered),
-        ...line('配車の希望がまだ', noWish),
+      header: { type: 'box', layout: 'vertical', backgroundColor: '#059669', paddingAll: '16px', ...tap, contents: [
+        { type: 'text', text: `${ask}のお願い`, size: 'xs', color: '#d1fae5', weight: 'bold' },
+        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'lg', color: '#ffffff', wrap: true },
+      ] },
+      body: { type: 'box', layout: 'vertical', spacing: 'md', ...tap, contents: [
+        { type: 'box', layout: 'horizontal', contents: [
+          { type: 'text', text: '締切', size: 'sm', color: '#777777', flex: 0 },
+          { type: 'text', text: dateLabel(deadlineOf(event)), size: 'sm', weight: 'bold', margin: 'md' },
+        ] },
+        { type: 'text', text: `まだの方は、締切までにアプリで${ask}を入れてください。`, size: 'sm', color: '#333333', wrap: true },
+        { type: 'text', text: 'もう入れた方は、このお知らせは気にしないでください。', size: 'xs', color: '#888888', wrap: true },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
-        { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで回答する', uri: liffUrl } },
+        { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで入れる', uri: liffUrl } },
       ] },
     },
   };
