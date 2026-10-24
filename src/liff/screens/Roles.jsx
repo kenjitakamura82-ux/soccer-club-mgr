@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, Send } from 'lucide-react';
 import { entryFlex } from '../util.js';
-import { Sheet, Press, useToast, spring } from '../ui.jsx';
+import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 
 export const ROLES = [
   { id: 'ride', name: '配車担当', desc: '配車の希望を見て割り振り、グループに共有する' },
@@ -30,12 +30,32 @@ export default function Roles({ ctx }) {
           );
         })}
       </section>
+      <ReminderDay ctx={ctx} />
       <EntryCard ctx={ctx} />
       <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿だけ使えます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
         {editing && <RolePicker ctx={ctx} role={editing} onClose={() => setEditing(null)} />}
       </Sheet>
     </div>
+  );
+}
+
+// 週末リマインド（グループに届く「今週末の予定」）を送る曜日
+const DAYS = ['日', '月', '火', '水', '木', '金', '土'];
+function ReminderDay({ ctx }) {
+  const toast = useToast();
+  const current = Number.isInteger(ctx.data.settings?.weekendDay) ? ctx.data.settings.weekendDay : 5;
+  const change = async (d) => {
+    if (d === current) return;
+    await ctx.actions.saveReminderDay(d);
+    toast(`${DAYS[d]}曜日に送ります`, '次の朝7時台から反映されます');
+  };
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <b>週末リマインドを送る曜日</b>
+      <p className="text-xs text-gray-500 mt-0.5 mb-3">選んだ曜日の朝7時台に「今週末の予定」がグループに届きます（1時間ほどずれることがあります）。</p>
+      <Segmented id="reminder-day" value={current} onChange={change} options={[1, 2, 3, 4, 5, 6].map((d) => ({ value: d, label: DAYS[d] }))} />
+    </section>
   );
 }
 

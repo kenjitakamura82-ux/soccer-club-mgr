@@ -26,6 +26,12 @@ service cloud.firestore {
         || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'updatedAt']));
     }
 
+    // 設定（週末リマインドの曜日など）。読むのはメンバー、変えるのは管理者だけ
+    match /artifacts/{appId}/settings/{docId} {
+      allow read: if lineMember();
+      allow write: if hasRole('admin');
+    }
+
     // 練習場の案内の画像など（スクリプトから入れる。読むのはメンバーだけ）
     match /artifacts/{appId}/liffContent/{docId} {
       allow read: if lineMember();

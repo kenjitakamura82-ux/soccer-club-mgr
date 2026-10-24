@@ -33,6 +33,7 @@ const state = {
   payments: [{ id: 'ev2', eventId: 'ev2', isActive: true, description: '試合の参加費', amount: 500 }],
   paymentStatuses: [{ id: 'ev2_s3', eventId: 'ev2', studentId: 's3', status: 'transferred', responderName: '颯真パパ' }],
   ridePlans: [],
+  settings: {},
   studentPhotos: [],
   members: [
     { id: 'u_parent', displayName: '保護者A', roles: [], studentId: null },
@@ -100,6 +101,7 @@ export const actions = {
   reportTransfer: async (eventId, studentId) => upsert('paymentStatuses', `${eventId}_${studentId}`, { eventId, studentId, status: 'transferred' }),
   confirmTransfer: async (psId, by) => upsert('paymentStatuses', psId, { isConfirmed: true, confirmedBy: by }),
   saveRidePlan: async (eventId, cars, by) => upsert('ridePlans', eventId, { eventId, cars, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
+  saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   loadVenue: async () => null,
   shareTargetPicker: async (messages) => { console.log('shareTargetPicker', messages); return { status: 'success' }; },

@@ -52,6 +52,7 @@ export function subscribe(onData) {
   };
   ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
+  listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
   listen('me', memberDoc(me.uid), (s) => ({ uid: me.uid, ...me, ...s.data() }));
   return () => unsubs.forEach((u) => u());
 }
@@ -110,6 +111,10 @@ export const actions = {
 
   saveRidePlan: (eventId, cars, by) =>
     setDoc(pubDoc('ridePlans', eventId), { eventId, cars, confirmedBy: by, confirmedAt: now() }),
+
+  // 週末リマインドを送る曜日（0=日〜6=土）。line-schedule-bot の api/weekend-reminder.js が読む
+  saveReminderDay: (weekendDay) =>
+    setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendDay, updatedAt: now() }, { merge: true }),
 
   setRoles: (uid, roles) => updateDoc(memberDoc(uid), { roles, updatedAt: now() }),
 
