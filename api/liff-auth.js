@@ -1,29 +1,8 @@
-/* global process */
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { admin, env, APP_ID } from './_admin.js';
 
 // LIFF（LINEの中で開く画面）のログイン。
 // LINEのIDトークンを LINE のサーバーで確かめてから、Firebase のログイン用トークンを発行する。
 // 役割（配車担当・会計など）はトークンに入れて、Firestore のルールでも確かめる。
-
-const APP_ID = 'soccer-club-mgr-app';
-
-// PowerShell経由で登録した値は先頭にBOMが付くことがあるので除去する（line-schedule-bot と同じ）
-const env = (name) => (process.env[name] || '').replace(/^\uFEFF/, '').trim();
-
-function admin() {
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId: env('FIREBASE_PROJECT_ID'),
-        clientEmail: env('FIREBASE_CLIENT_EMAIL'),
-        privateKey: env('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return { auth: getAuth(), db: getFirestore() };
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });

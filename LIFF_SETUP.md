@@ -36,6 +36,7 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 | `VITE_LIFF_ID` | LIFF ID |
 | `LINE_LOGIN_CHANNEL_ID` | LINEログインのチャネルID |
 | `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | line-schedule-bot と同じ値 |
+| `GROQ_API_KEY` | 予定の入力画面の「AIで読み取る」用。line-schedule-bot と同じキーでOK |
 
 ### line-schedule-bot
 
@@ -73,6 +74,12 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 | `admin` | 管理者 | 役割の付け替え、名簿の修正 |
 
 役割はログインのたびにトークンに入る。変えたら次に開いたときから反映。
+
+## 予定の追加・修正
+
+- 配車担当・案内係・管理者は、予定一覧の右下「予定を追加」と、予定の詳細の「予定を直す・中止にする」が使える
+- 「AIで読み取る」は `api/parse-event.js`（Groq、モデルは line-schedule-bot と同じ `openai/gpt-oss-120b`）。読み取るだけで、保存は画面で確かめてから。呼べるのは上の役割の人だけ（FirebaseのIDトークンで確認）
+- 中止はタイトルの頭に【中止】を付ける（line-schedule-bot と同じ扱い）。削除はしない
 
 ## 出欠の締切と変更
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock } from 'lucide-react';
+import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
+import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, dateLabel, timeLabel, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-700' : e.type === '練習' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600';
@@ -12,7 +13,9 @@ export default function Home({ ctx, open }) {
   const att = (eid) => data.attendances.find((a) => a.eventId === eid && a.studentId === myKid?.id)?.status;
   const unanswered = myKid ? events.filter((e) => !isCanceled(e) && !isClosed(e) && !att(e.id)).length : 0;
   const [selected, setSelected] = useState(null);
+  const [editing, setEditing] = useState(null);
   const selectedEvent = data.events.find((e) => e.id === selected);
+  const editor = canEditDeadline(ctx.has);
 
   return (
     <div>
@@ -34,8 +37,17 @@ export default function Home({ ctx, open }) {
       </motion.ul>
 
       <Sheet open={!!selectedEvent} onClose={() => setSelected(null)} title={selectedEvent && `${dateLabel(selectedEvent.date)} ${selectedEvent.title}`}>
-        {selectedEvent && <EventDetail e={selectedEvent} ctx={ctx} open={open} />}
+        {selectedEvent && <EventDetail e={selectedEvent} ctx={ctx} open={open} onEdit={() => { setEditing(selectedEvent); setSelected(null); }} />}
       </Sheet>
+
+      {editor && (
+        <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} transition={spring} whileTap={{ scale: 0.9 }} onClick={() => setEditing('new')}
+          className="fixed right-4 z-20 bg-emerald-600 text-white rounded-full shadow-lg pl-3 pr-4 py-3 font-bold text-sm flex items-center gap-1"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}>
+          <Plus className="w-5 h-5" />予定を追加
+        </motion.button>
+      )}
+      {editor && <EventEditor ctx={ctx} open={!!editing} event={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
@@ -152,7 +164,7 @@ function DeadlineEditor({ e, ctx }) {
   );
 }
 
-function EventDetail({ e, ctx, open }) {
+function EventDetail({ e, ctx, open, onEdit }) {
   const { data, myKid, students, photos, has } = ctx;
   const status = myKid && data.attendances.find((a) => a.eventId === e.id && a.studentId === myKid.id)?.status;
   const attending = data.attendances.filter((a) => a.eventId === e.id && a.status === '参加').map((a) => students[a.studentId]).filter(Boolean);
@@ -179,6 +191,9 @@ function EventDetail({ e, ctx, open }) {
         </section>
       )}
 
+      {canEditDeadline(has) && (
+        <Press onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-700 bg-white"><Pencil className="w-4 h-4" />予定を直す・中止にする</Press>
+      )}
       {!isCanceled(e) && canEditDeadline(has) && <DeadlineEditor key={deadlineOf(e)} e={e} ctx={ctx} />}
 
       {plan && (

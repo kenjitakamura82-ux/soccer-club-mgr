@@ -60,6 +60,24 @@ export const actions = {
   saveAttendance: (eventId, studentId, status, name) =>
     setDoc(pubDoc('attendances', `${eventId}_${studentId}`), { eventId, studentId, status, responderName: name, updatedAt: now() }, { merge: true }),
 
+  // 予定の追加・修正。項目は既存アプリの「手動追加」と同じ
+  async saveEvent(event) {
+    const id = event.id || crypto.randomUUID();
+    const t = now();
+    await setDoc(pubDoc('events', id), { ...event, id, updatedAt: t, ...(event.id ? {} : { createdAt: t, source: 'liff' }) }, { merge: true });
+    return id;
+  },
+
+  async parseEvents(text) {
+    const res = await fetch('/api/parse-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `読み取れませんでした（${res.status}）`);
+    return (await res.json()).events;
+  },
+
   // 出欠の締切（YYYY-MM-DD）。既存アプリ・line-schedule-bot は読まない項目なので、足しても影響しない
   saveDeadline: (eventId, answerDeadline) =>
     setDoc(pubDoc('events', eventId), { answerDeadline, updatedAt: now() }, { merge: true }),

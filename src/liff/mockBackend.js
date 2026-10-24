@@ -73,6 +73,16 @@ export function subscribe(fn) {
 
 export const actions = {
   saveAttendance: async (eventId, studentId, status) => upsert('attendances', `${eventId}_${studentId}`, { eventId, studentId, status, updatedAt: new Date().toISOString() }),
+  saveEvent: async (event) => { const id = event.id || `ev_${Math.random().toString(36).slice(2, 8)}`; upsert('events', id, { ...event, id }); return id; },
+  // 見本：本物のAIは呼ばず、それらしい結果を返す
+  parseEvents: async (text) => {
+    await new Promise((r) => setTimeout(r, 900));
+    const m = text.match(/(\d{1,2})\/(\d{1,2})/);
+    const date = m ? `${new Date().getFullYear()}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : day(10);
+    const list = [{ date, type: /試合|大会|カップ|TM/.test(text) ? '試合' : '練習', title: /試合|大会|カップ/.test(text) ? '練習試合' : '練習', gatherTime: '08:30', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド', memo: /水筒/.test(text) ? '水筒を多めに' : '' }];
+    if (/両日|土日/.test(text)) list.push({ ...list[0], date: day(sun + 7), title: '練習' });
+    return list;
+  },
   saveDeadline: async (eventId, answerDeadline) => upsert('events', eventId, { answerDeadline }),
   saveRide: async (eventId, studentId, ride) => upsert('rides', `${eventId}_${studentId}`, { eventId, studentId, ...ride, updatedAt: new Date().toISOString() }, false),
   async registerKid({ childName, kana, grade, jerseyNumber, photo }) {
