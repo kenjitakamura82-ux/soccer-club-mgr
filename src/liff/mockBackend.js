@@ -44,6 +44,7 @@ const state = {
   ],
 };
 
+const attachments = {};
 const listeners = new Set();
 let meId = 'u_parent';
 const emit = () => {
@@ -104,7 +105,9 @@ export const actions = {
   saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   loadVenue: async () => null,
-  loadAttachments: async (eventId) => (eventId === 'ev1' ? [{ id: 'a1', name: '練習メニュー.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="400" height="260" fill="%23d1fae5"/><text x="200" y="140" font-size="28" text-anchor="middle" fill="%23065f46">練習メニュー（見本）</text></svg>').replace(/%2523/g, '%23') }, { id: 'a2', name: '大会要項.pdf', url: 'data:application/pdf;base64,JVBERi0=' }] : []),
+  addAttachment: async (eventId, a) => { (attachments[eventId] ||= []).push({ id: `a_${Math.random().toString(36).slice(2, 8)}`, ...a }); },
+  removeAttachment: async (eventId, attId) => { attachments[eventId] = (attachments[eventId] || []).filter((a) => a.id !== attId); },
+  loadAttachments: async (eventId) => attachments[eventId] || (eventId === 'ev1' ? [{ id: 'a1', name: '練習メニュー.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="400" height="260" fill="%23d1fae5"/><text x="200" y="140" font-size="28" text-anchor="middle" fill="%23065f46">練習メニュー（見本）</text></svg>').replace(/%2523/g, '%23') }, { id: 'a2', name: '大会要項.pdf', url: 'data:application/pdf;base64,JVBERi0=' }] : []),
   shareTargetPicker: async (messages) => { console.log('shareTargetPicker', messages); return { status: 'success' }; },
   getFriendship: async () => false,
   addFriendUrl: () => 'https://line.me/R/ti/p/%40example',

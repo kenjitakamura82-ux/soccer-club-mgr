@@ -73,6 +73,37 @@ export const compressPhoto = (file, size = 360) => new Promise((resolve, reject)
   img.src = url;
 });
 
+// 予定の添付。既存アプリ（src/App.jsx の compressImage）と同じく、画像は約800KB以下のJPEGに縮める。
+// 画像以外はそのまま data URL にする（Firestoreの1件1MB制限があるので、大きいファイルは断る）
+export const ATTACH_MAX_FILE = 700 * 1024;
+export const compressAttachment = (file) => new Promise((resolve, reject) => {
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(objectUrl);
+    for (const maxW of [1200, 800, 500, 300]) {
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      for (let q = 0.8; q >= 0.1; q = Math.round((q - 0.1) * 10) / 10) {
+        const url = c.toDataURL('image/jpeg', q);
+        if (url.length <= 800000) return resolve(url);
+      }
+    }
+    reject(new Error('画像が大きすぎます'));
+  };
+  img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('画像を読み込めませんでした')); };
+  img.src = objectUrl;
+});
+export const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(r.result);
+  r.onerror = reject;
+  r.readAsDataURL(file);
+});
+
 export function ridePlanFlex(event, plan, students, liffUrl) {
   const name = (id) => kidName(students[id]);
   const cars = plan.cars.filter((c) => c.passengers.length);

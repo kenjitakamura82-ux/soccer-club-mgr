@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Sparkles, Loader2, Ban, X, ChevronDown } from 'lucide-react';
+import { Sparkles, Loader2, Ban, X, ChevronDown, Paperclip, FileText } from 'lucide-react';
 import { Sheet, Press, useShake, useToast, spring } from '../ui.jsx';
-import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf } from '../util.js';
+import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf, compressAttachment, readAsDataUrl, ATTACH_MAX_FILE } from '../util.js';
 
 // 「AIで読み取る」は使うAIを決めるまで「準備中」で押せない。Vercel の環境変数 VITE_AI_PARSE=on で使える（開発の見本データでは常に使える）
 const AI_ENABLED = import.meta.env.VITE_AI_PARSE === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
@@ -33,6 +33,12 @@ function EditorBody({ ctx, event, onClose }) {
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [scope, shake] = useShake();
+  // 添付：登録済み（existing）、消す予定（removed）、これから足す（added）。保存を押したときにまとめて書く
+  const [existing, setExisting] = useState([]);
+  const [removed, setRemoved] = useState([]);
+  const [added, setAdded] = useState([]);
+  const [reading, setReading] = useState(false);
+  useEffect(() => { if (event?.id) ctx.actions.loadAttachments(event.id).then(setExisting).catch(console.error); }, [ctx.actions, event?.id]);
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
 
   const fill = (e) => { setF({ ...EMPTY, ...e }); setFlash((n) => n + 1); };
@@ -45,7 +51,11 @@ function EditorBody({ ctx, event, onClose }) {
       const { startTime, ...rest } = f;
       const data = { ...rest, title: f.title.trim(), [startKeyOf(event)]: startTime };
       if (!data.answerDeadline) delete data.answerDeadline;
-      await ctx.actions.saveEvent(event ? { ...data, id: event.id } : data);
+      const kept = existing.filter((a) => !removed.includes(a.id));
+      if (added.length || removed.length) data.hasAttachments = kept.length + added.length > 0;
+      const id = await ctx.actions.saveEvent(event ? { ...data, id: event.id } : data);
+      for (const a of added) await ctx.actions.addAttachment(id, a);
+      for (const attId of removed) await ctx.actions.removeAttachment(id, attId);
       toast(event ? '予定を直しました' : '予定を追加しました', `${dateLabel(f.date)} ${f.title.trim()}`);
       onClose();
     } catch (e) { console.error(e); setErr('保存できませんでした'); setSaving(false); }
@@ -59,6 +69,22 @@ function EditorBody({ ctx, event, onClose }) {
       onClose();
     } catch (e) { console.error(e); setErr('保存できませんでした'); setSaving(false); }
   };
+
+  const pickFiles = async (ev) => {
+    const files = [...(ev.target.files || [])];
+    ev.target.value = '';
+    setReading(true); setErr('');
+    for (const file of files) {
+      try {
+        if (!file.type.startsWith('image/') && file.size > ATTACH_MAX_FILE) throw new Error(`${file.name} は大きすぎます（画像以外は700KBまで）`);
+        const url = file.type.startsWith('image/') ? await compressAttachment(file) : await readAsDataUrl(file);
+        setAdded((x) => [...x, { name: file.name, url }]);
+      } catch (e) { setErr(e.message); }
+    }
+    setReading(false);
+  };
+  const attachList = [...existing.filter((a) => !removed.includes(a.id)).map((a) => ({ ...a, drop: () => setRemoved((r) => [...r, a.id]) })),
+    ...added.map((a, i) => ({ ...a, id: `new${i}`, drop: () => setAdded((x) => x.filter((_, j) => j !== i)) }))];
 
   const cancelEvent = async () => {
     await ctx.actions.saveEvent({ id: event.id, title: `【中止】${event.title}` });
@@ -115,6 +141,27 @@ function EditorBody({ ctx, event, onClose }) {
         {row('場所', <input id="ev-place" className={plain} value={f.location} onChange={set('location')} placeholder="例：柏の葉小 第二グラウンド" />, 'ev-place')}
         {row('出欠の締切', <input id="ev-deadline" type="date" className={plain} value={f.answerDeadline} max={f.date} onChange={set('answerDeadline')} />, 'ev-deadline')}
         {f.date && !f.answerDeadline && <p className="text-xs text-gray-500 pl-[120px] pr-4 pt-1.5">空なら {dateLabel(defaultDeadline(f))}（{f.type === '試合' ? '2週間前' : '3日前'}）</p>}
+        <div className="px-4 py-2 border-b border-gray-100">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-2 min-h-[36px]">
+            <span className="text-sm text-gray-500">添付</span>
+            <label className="relative inline-flex items-center gap-1.5 justify-self-start rounded-full border border-gray-200 px-3.5 py-1.5 text-sm text-gray-700 cursor-pointer active:bg-gray-100">
+              {reading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}{reading ? '読み込み中…' : '画像・PDFを選ぶ'}
+              <input type="file" multiple accept="image/*,application/pdf" onChange={pickFiles} className="absolute inset-0 opacity-0" aria-label="添付するファイルを選ぶ" />
+            </label>
+          </div>
+          {attachList.length > 0 && (
+            <ul className="mt-2 grid grid-cols-3 gap-2">
+              {attachList.map((a) => (
+                <li key={a.id} className="relative rounded-xl bg-gray-100 overflow-hidden aspect-square">
+                  {a.url?.startsWith('data:image/')
+                    ? <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full grid place-items-center p-2 text-center"><div><FileText className="w-6 h-6 text-gray-500 mx-auto" /><p className="text-[10px] text-gray-600 mt-1 line-clamp-2 break-all">{a.name}</p></div></div>}
+                  <button type="button" onClick={a.drop} aria-label={`${a.name}を外す`} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white grid place-items-center"><X className="w-3.5 h-3.5" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <textarea aria-label="メモ（持ち物・注意など）" className="block w-full min-h-[160px] border-0 outline-none resize-none bg-transparent text-base leading-relaxed p-4" value={f.memo} onChange={set('memo')} placeholder="メモ（持ち物・注意など）" />
       </motion.div>
 
