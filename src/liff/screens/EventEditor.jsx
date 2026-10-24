@@ -4,6 +4,9 @@ import { Sparkles, Loader2, Plus, Ban } from 'lucide-react';
 import { Sheet, Press, Segmented, useShake, useToast, spring } from '../ui.jsx';
 import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled } from '../util.js';
 
+// 「AIで読み取る」は使うAIを決めるまで隠しておく。Vercel の環境変数 VITE_AI_PARSE=on で出る（開発の見本データでは常に出す）
+const AI_ENABLED = import.meta.env.VITE_AI_PARSE === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
+
 const EMPTY = { date: '', type: '練習', title: '', gatherTime: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '' };
 const pick = (e) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || '']));
 
@@ -62,7 +65,7 @@ function EditorBody({ ctx, event, onClose }) {
 
   return (
     <div className="space-y-4 text-sm">
-      {!event && <AiBox ctx={ctx} onResults={(list) => { setResults(list); if (list[0]) fill(list[0]); }} />}
+      {!event && AI_ENABLED && <AiBox ctx={ctx} onResults={(list) => { setResults(list); if (list[0]) fill(list[0]); }} />}
 
       <AnimatePresence>
         {results.length > 1 && (
@@ -139,8 +142,9 @@ function AiBox({ ctx, onResults }) {
   return (
     <section className="rounded-2xl p-3 bg-gradient-to-br from-emerald-50 to-sky-50 border border-emerald-100 space-y-2">
       <h4 className="font-bold text-emerald-800 flex items-center gap-1.5"><Sparkles className="w-4 h-4" />AIで読み取る</h4>
+      <p className="text-xs text-emerald-900">メモ書きでOK。日付さえ入っていれば、時間・場所・持ち物はAIが入力欄に振り分けます。LINEの連絡をそのまま貼っても大丈夫。</p>
       <textarea value={text} onChange={(e) => setText(e.target.value)} className="w-full border border-emerald-100 rounded-xl p-3 text-base h-24 bg-white outline-none focus:ring-2 focus:ring-emerald-500"
-        placeholder="LINEの連絡をそのまま貼るか、ふつうに書く&#10;例：11/3(火祝) 練習 9時〜11時 柏の葉小 第二G 水筒多め" />
+        placeholder="例：来週土曜 練習 9時〜 柏の葉小 水筒多め" />
       <Press onClick={run} disabled={busy || !text.trim()} className="w-full bg-emerald-700 text-white rounded-xl py-2.5 font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
         {busy ? <><Loader2 className="w-4 h-4 animate-spin" />読み取り中…</> : <><Sparkles className="w-4 h-4" />読み取って入力欄に入れる</>}
       </Press>

@@ -36,7 +36,7 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 | `VITE_LIFF_ID` | LIFF ID |
 | `LINE_LOGIN_CHANNEL_ID` | LINEログインのチャネルID |
 | `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | line-schedule-bot と同じ値 |
-| `GROQ_API_KEY` | 予定の入力画面の「AIで読み取る」用。line-schedule-bot と同じキーでOK |
+| `GROQ_API_KEY` / `VITE_AI_PARSE` | 「AIで読み取る」用（**保留中**。使うAIを本格稼働のときに決める。決めたら `VITE_AI_PARSE=on` で画面に出る） |
 
 ### line-schedule-bot
 
@@ -78,7 +78,7 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 ## 予定の追加・修正
 
 - 配車担当・案内係・管理者は、予定一覧の右下「予定を追加」と、予定の詳細の「予定を直す・中止にする」が使える
-- 「AIで読み取る」は `api/parse-event.js`（Groq、モデルは line-schedule-bot と同じ `openai/gpt-oss-120b`）。読み取るだけで、保存は画面で確かめてから。呼べるのは上の役割の人だけ（FirebaseのIDトークンで確認）
+- 「AIで読み取る」は保留中（2026-10-24 ユーザー判断。本格稼働のときに、その時点で良いAIを選び直す）。`VITE_AI_PARSE=on` になるまで画面に出ない。中身は `api/parse-event.js`（Groq、モデルは line-schedule-bot と同じ `openai/gpt-oss-120b`）。読み取るだけで、保存は画面で確かめてから。呼べるのは上の役割の人だけ（FirebaseのIDトークンで確認）
 - 中止はタイトルの頭に【中止】を付ける（line-schedule-bot と同じ扱い）。削除はしない
 
 ## 出欠の締切と変更
