@@ -46,7 +46,7 @@ if (cmd === 'members') {
   const snap = await db.collection('lineScheduleBot').get();
   for (const d of snap.docs) console.log(d.id, JSON.stringify(d.data()).slice(0, 120));
   const joins = await db.collection('lineScheduleBot').doc('_joins').collection('groups').get();
-  for (const d of joins.docs) console.log('joined:', d.id, d.data().joinedAt);
+  for (const d of joins.docs) console.log(d.id, d.data().groupName || '(名前不明)', d.data().firstSeenAt || d.data().joinedAt);
 } else if (cmd === 'rules') {
   const source = readFileSync(resolve(root, 'firestore.rules'), 'utf8');
   if (!args.includes('--deploy')) {
