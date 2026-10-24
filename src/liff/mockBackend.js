@@ -99,6 +99,7 @@ export const actions = {
     upsert('students', studentId, { jerseyNumber: jerseyNumber || '', ...(childName ? { childName } : {}) });
     if (photo) upsert('studentPhotos', studentId, { dataUrl: photo });
   },
+  savePayment: async (eventId, { description, amount, isActive }) => upsert('payments', eventId, { eventId, description, amount: amount ? Number(amount) : null, isActive }),
   reportTransfer: async (eventId, studentId) => upsert('paymentStatuses', `${eventId}_${studentId}`, { eventId, studentId, status: 'transferred' }),
   confirmTransfer: async (psId, by) => upsert('paymentStatuses', psId, { isConfirmed: true, confirmedBy: by }),
   saveRidePlan: async (eventId, cars, by) => upsert('ridePlans', eventId, { eventId, cars, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),

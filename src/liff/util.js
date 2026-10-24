@@ -161,6 +161,29 @@ export function entryFlex(liffUrl, day = '金') {
   };
 }
 
+// 集金のお知らせ。会計の人が「人を選んで送る」で全体LINEに送る（本人が送る形なので公式アカウントの通数は使わない見込み）
+export function payFlex(event, payment, liffUrl) {
+  const yen = payment.amount ? `¥${Number(payment.amount).toLocaleString()}` : '';
+  const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
+  return {
+    type: 'flex',
+    altText: `集金のお知らせ：${dateLabel(event.date)} ${event.title}${yen ? ` ${yen}` : ''}`,
+    contents: {
+      type: 'bubble',
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
+        { type: 'text', text: '集金のお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: payment.description || '集金', size: 'sm', color: '#555555', wrap: true },
+        ...(yen ? [{ type: 'text', text: yen, size: 'xxl', weight: 'bold', margin: 'md' }] : []),
+        { type: 'text', text: 'ことら送金をしたら、アプリの「集金」で「ことら送金した」を押してください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
+      ] },
+      footer: { type: 'box', layout: 'vertical', contents: [
+        { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで確認する', uri: liffUrl } },
+      ] },
+    },
+  };
+}
+
 export function inviteFlex(liffUrl) {
   return {
     type: 'flex',

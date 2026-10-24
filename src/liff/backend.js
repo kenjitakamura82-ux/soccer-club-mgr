@@ -104,6 +104,10 @@ export const actions = {
     if (photo) await setDoc(pubDoc('studentPhotos', studentId), { dataUrl: photo, updatedAt: now() });
   },
 
+  // 集金の設定。既存アプリ（src/App.jsx の savePaymentDoc）と同じ形で payments/{予定のID} に入れる
+  savePayment: (eventId, { description, amount, isActive }, by) =>
+    setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, isActive, setBy: by, updatedAt: now() }, { merge: true }),
+
   reportTransfer: (eventId, studentId, name) =>
     setDoc(pubDoc('paymentStatuses', `${eventId}_${studentId}`), { eventId, studentId, responderName: name, status: 'transferred', transferredAt: now(), updatedAt: now() }, { merge: true }),
 
