@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Backpack, Shirt, Hash, CalendarCheck, Camera, Map, Ban, Bike, MapPin } from 'lucide-react';
+import { Backpack, Shirt, Hash, CalendarCheck, Camera, Map, Ban, Bike, MapPin, RotateCw } from 'lucide-react';
 import { Press, listVariants, itemVariants } from '../ui.jsx';
 
 function Section({ icon: Icon, title, children }) {
@@ -41,13 +41,32 @@ export function Welcome({ onVenue, onDone }) {
 }
 
 export function Venue({ ctx, onDone }) {
+  // 画像は合わせて1.5MBほどあり、電波によっては数秒かかる。読み込み中は仮の枠、失敗したら理由と再読み込みを出す
   const [img, setImg] = useState(null);
-  useEffect(() => { ctx.actions.loadVenue().then(setImg).catch(() => setImg(null)); }, [ctx.actions]);
-  const pic = (k, alt) => img?.[k] ? <img src={img[k]} alt={alt} className="w-full rounded-xl mt-2" /> : null;
+  const [err, setErr] = useState('');
+  const [tries, setTries] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    ctx.actions.loadVenue()
+      .then((v) => { if (alive) setImg(v || {}); })
+      .catch((e) => { console.error(e); if (alive) setErr(e.code || e.message || '不明なエラー'); });
+    return () => { alive = false; };
+  }, [ctx.actions, tries]);
+  const retry = () => { setErr(''); setImg(null); setTries((n) => n + 1); };
+  const loading = !img && !err;
+  const pic = (k, alt) => img?.[k] ? <img src={img[k]} alt={alt} className="w-full rounded-xl mt-2" /> : loading ? <div className="liff-skel w-full aspect-[4/3] rounded-xl mt-2" /> : null;
   return (
     <div className="pb-10">
       <Hero label="練習場所" title="柏の葉小学校 第二グラウンド" sub="第一グラウンドは工事のため使えません。" />
       <motion.div className="p-3 space-y-3" variants={listVariants} initial="hidden" animate="show">
+        {err && (
+          <motion.section variants={itemVariants} className="bg-amber-50 rounded-2xl p-3 text-sm text-amber-800">
+            <p className="font-bold">写真を読み込めませんでした</p>
+            <p className="text-xs mt-0.5">電波の良いところで、もう一度読み込んでください。続くときは管理者に「{err}」と伝えてください。</p>
+            <Press onClick={retry} className="mt-2 flex items-center gap-1.5 bg-white border border-amber-200 rounded-lg px-3 py-1.5 text-xs font-bold"><RotateCw className="w-3.5 h-3.5" />もう一度読み込む</Press>
+          </motion.section>
+        )}
+        {loading && <div className="bg-white rounded-2xl p-2 shadow-sm border border-gray-100"><div className="liff-skel w-full aspect-[4/3] rounded-xl" /></div>}
         {img?.map && <motion.section variants={itemVariants} className="bg-white rounded-2xl p-2 shadow-sm border border-gray-100"><img src={img.map} alt="柏の葉小学校の地図。駐車エリア、入口、第二グラウンドへのルート、AED、トイレの位置" className="w-full rounded-xl" /></motion.section>}
         <Section icon={Ban} title="守ってほしいこと">
           <ol className="list-decimal pl-5 space-y-3">
