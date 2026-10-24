@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* LIFF画面の読み込み中の仮表示 */
+.liff-skel { background: linear-gradient(90deg, #eceff1 25%, #f7f8f9 45%, #eceff1 65%); background-size: 300% 100%; animation: liff-skel 1.3s linear infinite; }
+@keyframes liff-skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .liff-skel { animation: none; } }

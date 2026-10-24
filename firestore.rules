@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // LIFF（LINEログイン）で入った人。api/liff-auth.js が発行するトークンに member と roles が入る
+    function lineMember() { return signedIn() && request.auth.token.member == true; }
+    function hasRole(r) { return lineMember() && r in request.auth.token.roles; }
+
+    // 既存アプリ（匿名ログイン）が使っている場所。挙動は今まで通り
+    match /artifacts/{appId}/users/{uid} {
+      allow read, write: if signedIn();
+    }
+    match /artifacts/{appId}/public/data/{col}/{rest=**} {
+      allow read, write: if signedIn() && col != 'studentPhotos';
+    }
+
+    // 子どもの顔写真はLINEで入ったメンバーだけ
+    match /artifacts/{appId}/public/data/studentPhotos/{studentId} {
+      allow read, write: if lineMember();
+    }
+
+    // メンバーと役割。役割を変えられるのは管理者だけ。本人は家族のひも付けだけ変えられる
+    match /artifacts/{appId}/members/{uid} {
+      allow read: if lineMember();
+      allow update: if hasRole('admin')
+        || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'noFamily', 'updatedAt']));
+    }
+
+    // 練習場の案内の画像など（スクリプトから入れる。読むのはメンバーだけ）
+    match /artifacts/{appId}/liffContent/{docId} {
+      allow read: if lineMember();
+    }
+
+    // line-schedule-bot の作業用（サーバーの管理者権限で読み書きするので、アプリからは触らせない）
+    match /lineScheduleBot/{rest=**} {
+      allow read, write: if false;
+    }
+  }
+}
