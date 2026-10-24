@@ -11,6 +11,8 @@ export const isCanceled = (e) => e.title?.includes('中止') || e.title?.include
 // 既存アプリや line-schedule-bot が入れた集合時刻（gatherTime）があれば、それを開始として扱う
 export const startOf = (e) => e.gatherTime || e.startTime || '';
 export const timeLabel = (e) => { const s = startOf(e), t = e.endTime || ''; return s ? `${s}〜${t}` : t ? `〜${t}` : ''; };
+// 練習は車出しがないので、配車（希望の入力・配車まとめ）の対象から外す
+export const needsRide = (e) => e.type !== '練習' && !isCanceled(e);
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {

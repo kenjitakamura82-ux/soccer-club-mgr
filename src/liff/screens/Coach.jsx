@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { Car, Share2, Wand2, ClipboardList, AlertTriangle } from 'lucide-react';
 import { Press, useToast, spring } from '../ui.jsx';
-import { upcomingEvents, isCanceled, dateLabel, matchRides, kidName, ridePlanFlex } from '../util.js';
+import { upcomingEvents, needsRide, dateLabel, matchRides, kidName, ridePlanFlex } from '../util.js';
 
 export default function Coach({ ctx }) {
-  const events = upcomingEvents(ctx.data.events, 21).filter((e) => !isCanceled(e));
+  const events = upcomingEvents(ctx.data.events, 21).filter(needsRide);
   const [eventId, setEventId] = useState(events[0]?.id);
   const event = events.find((e) => e.id === eventId);
-  if (!event) return <p className="text-center text-sm text-gray-400 py-16">この先3週間の予定はありません</p>;
+  if (!event) return <p className="text-center text-sm text-gray-400 py-16">この先3週間、配車の要る予定（試合など）はありません</p>;
   return (
     <div className="p-3 space-y-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none]">

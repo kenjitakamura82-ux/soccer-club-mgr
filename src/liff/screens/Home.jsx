@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Pencil, Bell, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
-import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
+import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 // 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
 const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-900' : e.type === '練習' ? 'bg-green-100 text-green-900' : 'bg-blue-100 text-blue-900';
@@ -251,7 +251,7 @@ function EventDetail({ e, ctx, open, onEdit }) {
         </section>
       )}
 
-      {myKid && status === '参加' && !isCanceled(e) && !isClosed(e) && <RideForm e={e} ctx={ctx} />}
+      {myKid && status === '参加' && needsRide(e) && !isClosed(e) && <RideForm e={e} ctx={ctx} />}
 
       <section>
         <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1 mb-2"><Users className="w-4 h-4" />参加する子（{attending.length}人）</h4>
