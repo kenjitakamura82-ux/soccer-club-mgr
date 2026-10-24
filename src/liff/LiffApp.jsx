@@ -30,7 +30,8 @@ export default function LiffApp() {
   }, []);
 
   if (error) return <Centered><p className="font-bold">開けませんでした</p><p className="text-sm text-gray-500 mt-1">{error}</p><p className="text-xs text-gray-400 mt-4">LINEのグループにあるリンクから開き直してください</p></Centered>;
-  if (!backend || !data?.me || !data.students) return <Shell><Skeleton /></Shell>;
+  // 予定一覧も揃ってから出す（揃う前に出すと一瞬「予定はまだありません」が見えるため）
+  if (!backend || !data?.me || !data.students || !data.events) return <Shell><Skeleton /></Shell>;
   return <ToastProvider><Main data={data} actions={backend.actions} /><PaidNotice /></ToastProvider>;
 }
 

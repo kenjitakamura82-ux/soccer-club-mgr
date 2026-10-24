@@ -1,7 +1,7 @@
 import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // src/App.jsx と同じプロジェクト・同じ appId。データは既存アプリと共有する
 const firebaseConfig = {
@@ -16,7 +16,9 @@ const APP_ID = 'soccer-club-mgr-app';
 
 const app = initializeApp(firebaseConfig, 'liff');
 const auth = getAuth(app);
-const db = getFirestore(app);
+// 前に開いたときのデータを端末に残しておき、次に開いたときはまずそれを出す（電波が悪いと一覧が出るまで待たされていたため）。
+// 残せない環境では自動でふつうの読み込みになる
+const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }) });
 
 const pub = (name) => collection(db, 'artifacts', APP_ID, 'public', 'data', name);
 const pubDoc = (name, id) => doc(db, 'artifacts', APP_ID, 'public', 'data', name, id);
@@ -26,12 +28,7 @@ const now = () => new Date().toISOString();
 let me = null;
 
 // LINEでログイン → サーバーでIDトークンを確かめて Firebase のログイン用トークンをもらう
-export async function connect() {
-  await liff.init({ liffId: import.meta.env.VITE_LIFF_ID });
-  if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: location.href });
-    return new Promise(() => {});
-  }
+async function signInViaServer() {
   const res = await fetch('/api/liff-auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,7 +37,25 @@ export async function connect() {
   if (!res.ok) throw new Error(`ログインに失敗しました（${res.status}）`);
   const { token, member } = await res.json();
   const cred = await signInWithCustomToken(auth, token);
-  me = { uid: cred.user.uid, ...member };
+  return { uid: cred.user.uid, ...member };
+}
+
+export async function connect() {
+  // LINEの準備と、前回のFirebaseのログインの読み込みを同時に進める
+  await Promise.all([liff.init({ liffId: import.meta.env.VITE_LIFF_ID }), auth.authStateReady()]);
+  if (!liff.isLoggedIn()) {
+    liff.login({ redirectUri: location.href });
+    return new Promise(() => {});
+  }
+  // 前回と同じLINEの人がまだFirebaseにログインしたままなら、サーバーを待たずに始める。
+  // 名前や役割の取り直しは裏で済ませる（役割の変更は次に開いたときから効く、と管理タブに書いてある通り）
+  const sub = liff.getDecodedIDToken()?.sub;
+  if (sub && auth.currentUser?.uid === `line_${sub}`) {
+    me = { uid: auth.currentUser.uid };
+    signInViaServer().catch((e) => console.error('background sign-in', e));
+    return me;
+  }
+  me = await signInViaServer();
   return me;
 }
 
