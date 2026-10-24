@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Send, ListChecks } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 import { Press, Avatar, useToast, spring } from '../ui.jsx';
 import { upcomingEvents, needsRide, dateLabel, jersey, selectionOf, selectionFlex } from '../util.js';
 
-// 選抜担当の画面。選抜ありの試合で、参加と答えた子の中から出る子を選んで確定し、全体LINEに知らせる（2026-10-25 ユーザー決定）
+// 選抜担当の画面。選抜ありの試合で、参加と答えた子の中から出る子を選んで確定し、全体LINEに知らせる（2026-10-25 ユーザー決定）。
+// 並べるのは「選抜あり」の試合だけ（選抜なしは出さない。2026-10-25 ユーザー決定）。選抜ありは予定の追加・修正画面で付ける
 export default function Select({ ctx }) {
-  const events = upcomingEvents(ctx.data.events, 42).filter(needsRide);
-  const [eventId, setEventId] = useState(events.find((e) => e.selection)?.id || events[0]?.id);
-  const event = events.find((e) => e.id === eventId);
-  if (!event) return <p className="text-center text-sm text-gray-400 py-16">この先6週間、試合などの予定はありません</p>;
+  const events = upcomingEvents(ctx.data.events, 42).filter((e) => needsRide(e) && e.selection);
+  const [eventId, setEventId] = useState(events[0]?.id);
+  const event = events.find((e) => e.id === eventId) || events[0];
+  if (!event) return <p className="text-center text-sm text-gray-400 py-16 px-6">選抜ありの試合はありません。予定の追加・修正画面で「選抜：あり」にすると、ここに出ます。</p>;
   return (
     <div className="p-3 space-y-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none]">
         {events.map((e) => (
-          <Press key={e.id} onClick={() => setEventId(e.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold border ${e.id === eventId ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
-            {dateLabel(e.date)} {e.title}{e.selection ? (selectionOf(ctx.data, e.id) ? '・確定' : '・選抜') : ''}
+          <Press key={e.id} onClick={() => setEventId(e.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold border ${e.id === event.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+            {dateLabel(e.date)} {e.title}{selectionOf(ctx.data, e.id) ? '・確定' : ''}
           </Press>
         ))}
       </div>
@@ -37,7 +38,7 @@ function Panel({ ctx, event }) {
 
   const setFlag = async (on) => {
     await actions.saveEvent({ id: event.id, selection: on });
-    toast(on ? '選抜ありにしました' : '選抜なしにしました', on ? '出る子を選んで確定してください' : '参加の子全員で配車を組みます');
+    toast(on ? '選抜ありにしました' : '選抜なしにしました', on ? '出る子を選んで確定してください' : '参加の子全員で配車を組みます。この画面からは消えます');
   };
   const share = async (ids) => {
     try {
@@ -56,13 +57,6 @@ function Panel({ ctx, event }) {
     } catch (e) { console.error(e); toast('保存できませんでした'); }
     setSaving(false);
   };
-
-  if (!event.selection) return (
-    <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-sm space-y-3">
-      <p className="text-gray-600">この試合は「選抜なし」です。参加と答えた子全員で配車を組みます。</p>
-      <Press onClick={() => setFlag(true)} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold"><ListChecks className="w-4 h-4" />選抜ありにする</Press>
-    </section>
-  );
 
   return (
     <div className="space-y-3">
