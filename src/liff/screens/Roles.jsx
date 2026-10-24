@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Check } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
+import { entryFlex } from '../util.js';
 import { Sheet, Press, useToast, spring } from '../ui.jsx';
 
 export const ROLES = [
@@ -29,11 +30,30 @@ export default function Roles({ ctx }) {
           );
         })}
       </section>
+      <EntryCard ctx={ctx} />
       <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿だけ使えます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
         {editing && <RolePicker ctx={ctx} role={editing} onClose={() => setEditing(null)} />}
       </Sheet>
     </div>
+  );
+}
+
+// グループのアナウンスに固定する入口カードを、自分の発言としてグループに送る
+function EntryCard({ ctx }) {
+  const toast = useToast();
+  const send = async () => {
+    try {
+      const r = await ctx.actions.shareTargetPicker([entryFlex(ctx.actions.liffUrl())]);
+      if (r) toast('入口カードを送りました', '送ったカードを長押しして、アナウンスに固定してみてください');
+    } catch (e) { toast('送れませんでした', e.message); }
+  };
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <b>グループの入口</b>
+      <p className="text-xs text-gray-500 mt-0.5 mb-3">「予定・出欠・配車はここから」のカードをグループに送ります。カードのどこを押してもアプリが開きます。</p>
+      <Press onClick={send} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-2.5 font-bold text-sm"><Send className="w-4 h-4" />入口カードをグループに送る</Press>
+    </section>
   );
 }
 

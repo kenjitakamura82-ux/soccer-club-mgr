@@ -90,6 +90,28 @@ export function ridePlanFlex(event, plan, students, liffUrl) {
   };
 }
 
+// グループのアナウンスに固定する「入口カード」。どこを押してもアプリが開く
+export function entryFlex(liffUrl) {
+  const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
+  return {
+    type: 'flex',
+    altText: 'まちさか 予定・出欠・配車はここから',
+    contents: {
+      type: 'bubble',
+      header: { type: 'box', layout: 'vertical', backgroundColor: '#059669', paddingAll: '18px', ...tap, contents: [
+        { type: 'text', text: 'まちさかマネージャー', size: 'xs', color: '#d1fae5', weight: 'bold' },
+        { type: 'text', text: '予定・出欠・配車はここから', size: 'lg', color: '#ffffff', weight: 'bold', wrap: true },
+      ] },
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
+        { type: 'text', text: '出欠の回答、配車の希望、集金の報告、名簿をLINEの中で。押したことはグループには表示されません。', size: 'sm', color: '#555555', wrap: true },
+      ] },
+      footer: { type: 'box', layout: 'vertical', contents: [
+        { type: 'button', style: 'primary', color: '#059669', height: 'md', action: { type: 'uri', label: '開く', uri: liffUrl } },
+      ] },
+    },
+  };
+}
+
 export function inviteFlex(liffUrl) {
   return {
     type: 'flex',
