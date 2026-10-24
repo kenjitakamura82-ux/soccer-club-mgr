@@ -115,7 +115,7 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
       <p className={`min-w-0 truncate text-sm mt-0.5 ${unread ? 'font-bold' : ''} ${canceled ? 'line-through text-gray-400' : ''}`}>{[timeLabel(e), e.location].filter(Boolean).join('　') || '詳細を見る'}</p>
       <div className="row-span-2 self-end justify-self-end" onClick={(ev) => ev.stopPropagation()}>
         {myKid && !canceled && (closed
-          ? <span className="flex items-center gap-1 text-xs text-gray-500"><Lock className="w-3.5 h-3.5" />{status ? `${status}・締切済` : 'コーチに連絡'}</span>
+          ? <span className="flex items-center gap-1 text-xs text-gray-500"><Lock className="w-3.5 h-3.5" />{status ? `${status}・締切済み` : '出欠は締切済み'}</span>
           : <AttendSwitch e={e} ctx={ctx} status={status} />)}
       </div>
       <p className={`min-w-0 truncate text-[13px] mt-1 ${unread ? 'text-amber-700' : 'text-gray-500'}`}>{third}</p>
