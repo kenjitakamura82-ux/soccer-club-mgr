@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Pencil, Bell, X, Paperclip } from 'lucide-react';
-import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
+import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
@@ -93,6 +93,9 @@ function FriendBanner({ ctx }) {
   );
 }
 
+// 読み込み中の仮表示（ui.jsx の Skeleton）と同じ位置に出るので、下から滑らせずにその場でふわっと出す
+const rowVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.3, ease: 'easeOut' } } };
+
 // 1行目：タイトルと開始時刻／2行目：時間と場所／3行目：メモの書き出し（無ければ参加人数）。
 // うちの子が未回答の予定は、Gmailの未読と同じく太字＋青い点。出欠の切り替えは右下（Gmailの星の位置）
 function EventRow({ e, ctx, status, first, last, onOpen }) {
@@ -105,7 +108,7 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
   const memo = (e.memo || '').split('\n').find((l) => l.trim()) || '';
   const third = unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
   return (
-    <motion.li variants={itemVariants} onClick={onOpen}
+    <motion.li variants={rowVariants} onClick={onOpen}
       className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 cursor-pointer active:bg-gray-100 ${first ? 'rounded-t-2xl' : 'rounded-t'} ${last ? 'rounded-b-2xl' : 'rounded-b'}`}>
       <div className={`row-span-3 self-start w-[46px] h-[46px] rounded-full grid place-items-center text-center leading-none ${typeStyle(e)}`}>
         <div><span className="block text-[9px]">{d.m}月</span><b className="block text-[17px] tabular-nums my-px">{d.d}</b><span className="block text-[9px]">{d.w}</span></div>

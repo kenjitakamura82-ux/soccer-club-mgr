@@ -82,15 +82,31 @@ export function Avatar({ student, photo, size = 36 }) {
 }
 
 /* ---------- 読み込み中の仮表示 ---------- */
-export function Skeleton({ rows = 4 }) {
+// 読み込み後の予定一覧（Gmail風：上のボタン2つ、区切りの見出し、丸い日付＋3行＋右下の出欠）と同じ形にして、切り替わりで形が跳ねないようにする
+export function Skeleton({ groups = [2, 3] }) {
   return (
-    <div className="p-3 space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="bg-white rounded-2xl p-3 flex gap-3 items-center border border-gray-100">
-          <div className="liff-skel w-11 h-11 rounded-xl" />
-          <div className="flex-1 space-y-2"><div className="liff-skel h-3 w-3/5 rounded" /><div className="liff-skel h-2.5 w-2/5 rounded" /></div>
-        </div>
-      ))}
+    <div>
+      <div className="grid grid-cols-2 gap-2 px-3 pt-3"><div className="liff-skel h-9 rounded-xl" /><div className="liff-skel h-9 rounded-xl" /></div>
+      <div className="liff-skel mx-3 mt-3 h-9 rounded-xl" />
+      <div className="pb-3">
+        {groups.map((n, g) => (
+          <section key={g}>
+            <div className="px-4 pt-4 pb-1.5"><div className="liff-skel h-3 w-12 rounded" /></div>
+            <div className="px-1.5 space-y-[3px]">
+              {Array.from({ length: n }).map((_, i) => (
+                <div key={i} className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 ${i === 0 ? 'rounded-t-2xl' : 'rounded-t'} ${i === n - 1 ? 'rounded-b-2xl' : 'rounded-b'}`}>
+                  <div className="liff-skel row-span-3 w-[46px] h-[46px] rounded-full" />
+                  <div className="liff-skel h-4 w-3/5 rounded mt-0.5" />
+                  <div className="liff-skel h-3 w-9 rounded mt-0.5" />
+                  <div className="liff-skel h-3.5 w-4/5 rounded mt-2" />
+                  <div className="liff-skel row-span-2 self-end w-[104px] h-7 rounded-full" />
+                  <div className="liff-skel h-3 w-1/2 rounded mt-2" />
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
