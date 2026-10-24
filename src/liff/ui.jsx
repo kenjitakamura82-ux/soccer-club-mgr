@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { AnimatePresence, motion, useAnimate, useDragControls } from 'motion/react';
-import { CircleCheck, Minus, Plus } from 'lucide-react';
+import { AnimatePresence, motion, useAnimate } from 'motion/react';
+import { CircleCheck, Minus, Plus, X } from 'lucide-react';
 
 export const spring = { type: 'spring', stiffness: 380, damping: 30 };
 
@@ -37,7 +37,7 @@ export function ToastProvider({ children }) {
   );
 }
 
-/* ---------- 下から出るシート（つまみを下に引くと閉じる） ---------- */
+/* ---------- 下から出るシート ---------- */
 export function Sheet({ open, onClose, title, children }) {
   return (
     <AnimatePresence>
@@ -46,24 +46,20 @@ export function Sheet({ open, onClose, title, children }) {
   );
 }
 
+// LINEの中では下スワイプがLINEの画面を閉じる操作と取り合うので、シートは×ボタンか外側のタップで閉じる
 function SheetBody({ onClose, title, children }) {
-  const controls = useDragControls();
   return (
     <div className="fixed inset-0 z-50">
       <motion.div className="absolute inset-0 bg-black/40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.div
         className="absolute inset-x-0 bottom-0 mx-auto max-w-[480px] bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[92%]"
         initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={spring}
-        drag="y" dragControls={controls} dragListener={false}
-        dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.6 }}
-        onDragEnd={(_, i) => { if (i.offset.y > 110 || i.velocity.y > 600) onClose(); }}
       >
-        {/* つまみ部分だけドラッグできるようにする（中のスクロールと取り合わないため） */}
-        <div className="px-4 pt-2 pb-3 cursor-grab touch-none" onPointerDown={(e) => controls.start(e)}>
-          <span className="block w-10 h-1.5 rounded-full bg-gray-300 mx-auto mb-3" />
-          {title && <h3 className="font-bold text-base">{title}</h3>}
+        <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+          {title && <h3 className="font-bold text-base flex-1">{title}</h3>}
+          <button onClick={onClose} aria-label="閉じる" className="ml-auto -mt-1 w-9 h-9 rounded-full bg-gray-100 grid place-items-center shrink-0"><X className="w-5 h-5 text-gray-600" /></button>
         </div>
-        <div className="overflow-y-auto px-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>{children}</div>
       </motion.div>
     </div>
   );
