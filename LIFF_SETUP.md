@@ -36,6 +36,7 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 | `VITE_LIFF_ID` | LIFF ID |
 | `LINE_LOGIN_CHANNEL_ID` | LINEログインのチャネルID |
 | `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | line-schedule-bot と同じ値 |
+| `VITE_OA_BASIC_ID` | 公式アカウントのベーシックID（`@` から始まる）。友だち追加していない人に案内を出す |
 | `GROQ_API_KEY` / `VITE_AI_PARSE` | 「AIで読み取る」用（**保留中**。使うAIを本格稼働のときに決める。決めたら `VITE_AI_PARSE=on` で押せるようになる。それまでは「準備中」と表示） |
 
 ### line-schedule-bot
@@ -46,6 +47,7 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 | `NO_EXTRACT_GROUP_IDS` | パパグループのID（同じ。このグループの会話からは予定を拾わない） |
 | `LIFF_URL` | `https://liff.line.me/<LIFF ID>` |
 | `CRON_SECRET` | 適当な長い文字列 |
+| `MATCH_REMINDER` | `on` で試合の個別リマインドを送る |
 
 ## 3. パパグループ
 
@@ -80,6 +82,11 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 - 配車担当・案内係・管理者は、予定一覧の右下「予定を追加」と、予定の詳細の「予定を直す・中止にする」が使える
 - 「AIで読み取る」は保留中（2026-10-24 ユーザー判断。本格稼働のときに、その時点で良いAIを選び直す）。`VITE_AI_PARSE=on` になるまで「準備中・まだ使えません」と出て押せない。中身は `api/parse-event.js`（Groq、モデルは line-schedule-bot と同じ `openai/gpt-oss-120b`）。読み取るだけで、保存は画面で確かめてから。呼べるのは上の役割の人だけ（FirebaseのIDトークンで確認）
 - 中止はタイトルの頭に【中止】を付ける（line-schedule-bot と同じ扱い）。削除はしない
+
+## 試合の個別リマインド
+
+- line-schedule-bot の `api/match-reminder.js`。締切の3日前と前日の朝に、未回答の家族へ公式アカウントから1対1で送る（父母とも）
+- 届くのは公式アカウントを友だち追加した人だけ。LINEログインのチャネルに公式アカウントをリンクし、LIFFの「友だち追加オプション」をオンにする（初回の許可画面ですすめられる）。追加していない人には予定画面に案内が出る（`VITE_OA_BASIC_ID` が必要）
 
 ## 出欠の締切と変更
 

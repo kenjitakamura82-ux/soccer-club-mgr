@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil } from 'lucide-react';
+import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, Plus, Pencil, Bell, X } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, dateLabel, timeLabel, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
@@ -23,6 +23,8 @@ export default function Home({ ctx, open }) {
         <Press onClick={() => open('welcome')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Info className="w-4 h-4" />はじめての方へ</Press>
         <Press onClick={() => open('venue')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Map className="w-4 h-4" />練習場の使い方</Press>
       </div>
+
+      {myKid && <FriendBanner ctx={ctx} />}
 
       {myKid && (
         <motion.p layout className={`mx-3 mt-3 text-[13px] rounded-xl px-3 py-2 font-bold ${unanswered ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
@@ -49,6 +51,31 @@ export default function Home({ ctx, open }) {
       )}
       {editor && <EventEditor ctx={ctx} open={!!editing} event={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+// 公式アカウントを友だち追加していない人に、試合の個別リマインドが届くように案内する
+function FriendBanner({ ctx }) {
+  const url = ctx.actions.addFriendUrl();
+  const [friend, setFriend] = useState(true);
+  const [closed, setClosed] = useState(() => { try { return localStorage.getItem('friendBannerClosed') === '1'; } catch { return false; } });
+  useEffect(() => { if (url) ctx.actions.getFriendship().then((f) => setFriend(f !== false)); }, [ctx.actions, url]);
+  const close = () => { setClosed(true); try { localStorage.setItem('friendBannerClosed', '1'); } catch { /* 保存できなくても閉じるだけ */ } };
+  return (
+    <AnimatePresence>
+      {url && !friend && !closed && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={spring} className="overflow-hidden">
+          <div className="mx-3 mt-3 rounded-xl bg-sky-50 border border-sky-100 p-3 flex gap-2 items-start text-[13px] text-sky-900">
+            <Bell className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p>公式アカウントを友だち追加すると、試合の出欠や配車の回答を忘れていたときに、締切前にお知らせが届きます。</p>
+              <Press onClick={() => ctx.actions.openUrl(url)} className="mt-2 bg-[#06c755] text-white rounded-lg px-3 py-1.5 text-xs font-bold">友だち追加する</Press>
+            </div>
+            <button onClick={close} aria-label="閉じる" className="text-sky-700"><X className="w-4 h-4" /></button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

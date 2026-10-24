@@ -103,6 +103,9 @@ export const actions = {
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   loadVenue: async () => null,
   shareTargetPicker: async (messages) => { console.log('shareTargetPicker', messages); return { status: 'success' }; },
+  getFriendship: async () => false,
+  addFriendUrl: () => 'https://line.me/R/ti/p/%40example',
+  openUrl: (url) => console.log('openUrl', url),
   liffUrl: () => 'https://liff.line.me/xxxx',
   close: () => {},
 };

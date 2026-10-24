@@ -125,6 +125,13 @@ export const actions = {
     return liff.shareTargetPicker(messages);
   },
 
+  // 公式アカウントを友だち追加しているか（試合の個別リマインドは友だちにしか届かない）。分からなければ null
+  async getFriendship() {
+    try { return (await liff.getFriendship()).friendFlag; } catch { return null; }
+  },
+  addFriendUrl: () => (import.meta.env.VITE_OA_BASIC_ID ? `https://line.me/R/ti/p/${encodeURIComponent(import.meta.env.VITE_OA_BASIC_ID)}` : null),
+  openUrl: (url) => liff.openWindow({ url }),
+
   liffUrl: () => `https://liff.line.me/${import.meta.env.VITE_LIFF_ID}`,
   close: () => (liff.isInClient() ? liff.closeWindow() : history.back()),
 };
