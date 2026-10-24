@@ -238,7 +238,7 @@ function EventDetail({ e, ctx, open, onEdit }) {
       )}
 
       {canEditDeadline(has) && (
-        <Press onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-700 bg-white"><Pencil className="w-4 h-4" />予定を直す・中止にする</Press>
+        <Press onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-700 bg-white"><Pencil className="w-4 h-4" />予定を直す・中止・削除</Press>
       )}
       {!isCanceled(e) && canEditDeadline(has) && <DeadlineEditor key={deadlineOf(e)} e={e} ctx={ctx} />}
 

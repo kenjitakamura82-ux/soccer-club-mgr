@@ -130,6 +130,12 @@ export const actions = {
   async addAttachment(eventId, { name, url }) {
     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'events', eventId, 'attachments', crypto.randomUUID()), { name, url, createdAt: now() });
   },
+  // 予定の削除。既存アプリは予定本体だけ消すが、添付も残しても使い道がないので一緒に消す
+  async deleteEvent(eventId) {
+    const atts = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'events', eventId, 'attachments'));
+    for (const d of atts.docs) await deleteDoc(d.ref);
+    await deleteDoc(pubDoc('events', eventId));
+  },
   removeAttachment: (eventId, attId) => deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'events', eventId, 'attachments', attId)),
 
   async loadVenue() {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Sparkles, Loader2, Ban, X, ChevronDown, Paperclip, FileText } from 'lucide-react';
+import { Sparkles, Loader2, Ban, X, ChevronDown, Paperclip, FileText, Trash2 } from 'lucide-react';
 import { Sheet, Press, useShake, useToast, spring } from '../ui.jsx';
 import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf, compressAttachment, readAsDataUrl, ATTACH_MAX_FILE } from '../util.js';
 
@@ -32,6 +32,7 @@ function EditorBody({ ctx, event, onClose }) {
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [scope, shake] = useShake();
   // 添付：登録済み（existing）、消す予定（removed）、これから足す（added）。保存を押したときにまとめて書く
   const [existing, setExisting] = useState([]);
@@ -85,6 +86,15 @@ function EditorBody({ ctx, event, onClose }) {
   };
   const attachList = [...existing.filter((a) => !removed.includes(a.id)).map((a) => ({ ...a, drop: () => setRemoved((r) => [...r, a.id]) })),
     ...added.map((a, i) => ({ ...a, id: `new${i}`, drop: () => setAdded((x) => x.filter((_, j) => j !== i)) }))];
+
+  const deleteEvent = async () => {
+    setSaving(true);
+    try {
+      await ctx.actions.deleteEvent(event.id);
+      toast('予定を削除しました', `${dateLabel(event.date)} ${event.title}`);
+      onClose();
+    } catch (e) { console.error(e); setErr('削除できませんでした'); setSaving(false); setConfirmDelete(false); }
+  };
 
   const cancelEvent = async () => {
     await ctx.actions.saveEvent({ id: event.id, title: `【中止】${event.title}` });
@@ -178,6 +188,20 @@ function EditorBody({ ctx, event, onClose }) {
                   <p className="font-bold">中止にしますか？</p>
                   <p className="text-xs mt-0.5">タイトルの頭に【中止】が付いて、一覧に取り消し線で残ります。グループへの連絡は別にしてください。</p>
                   <div className="flex gap-2 mt-2"><Press onClick={cancelEvent} className="flex-1 bg-red-600 text-white rounded-lg py-2 font-bold">中止にする</Press><Press onClick={() => setConfirmCancel(false)} className="flex-1 bg-white border border-red-200 rounded-lg py-2 font-bold">やめる</Press></div>
+                </motion.div>
+              )}
+          </div>
+        )}
+
+        {event && (
+          <div>
+            {!confirmDelete
+              ? <button onClick={() => setConfirmDelete(true)} className="w-full flex items-center justify-center gap-1.5 text-gray-500 text-sm py-2"><Trash2 className="w-4 h-4" />この予定を削除する</button>
+              : (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 rounded-xl p-3 text-red-700">
+                  <p className="font-bold">この予定を削除しますか？</p>
+                  <p className="text-xs mt-0.5">削除すると元に戻せません。一覧からも消えて、付けた添付も消えます。予定を残したまま取りやめるときは「中止にする」を使ってください。</p>
+                  <div className="flex gap-2 mt-2"><Press onClick={deleteEvent} disabled={saving} className="flex-1 bg-red-600 text-white rounded-lg py-2 font-bold disabled:opacity-60">{saving ? '削除中…' : '削除する'}</Press><Press onClick={() => setConfirmDelete(false)} className="flex-1 bg-white border border-red-200 rounded-lg py-2 font-bold">やめる</Press></div>
                 </motion.div>
               )}
           </div>
