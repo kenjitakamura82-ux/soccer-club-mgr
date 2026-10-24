@@ -86,11 +86,12 @@ export const actions = {
   saveRide: (eventId, studentId, ride, name) =>
     setDoc(pubDoc('rides', `${eventId}_${studentId}`), { eventId, studentId, ...ride, responderName: name, updatedAt: now() }),
 
-  async registerKid({ childName, kana, grade, jerseyNumber, photo }) {
+  // link=false は名簿に足すだけ（管理者・案内係が名簿画面から追加するとき）
+  async registerKid({ childName, kana, grade, jerseyNumber, photo }, { link = true } = {}) {
     const id = `stu_${crypto.randomUUID().slice(0, 8)}`;
     await setDoc(pubDoc('students', id), { childName, kana, grade, jerseyNumber: jerseyNumber || '', source: 'liff', createdAt: now(), updatedAt: now() });
     if (photo) await setDoc(pubDoc('studentPhotos', id), { dataUrl: photo, updatedAt: now() });
-    await actions.linkKid(id);
+    if (link) await actions.linkKid(id);
     return id;
   },
 

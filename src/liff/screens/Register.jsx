@@ -98,7 +98,8 @@ function PhotoStep({ ctx, kid, back, onDone }) {
   );
 }
 
-function NewKid({ ctx, back, onDone }) {
+// forRoster: 名簿画面から管理者・案内係が足すとき（自分の子として紐づけない）
+export function NewKid({ ctx, back, onDone, forRoster }) {
   const toast = useToast();
   const [f, setF] = useState({ childName: '', kana: '', grade: '2年', jerseyNumber: '', photo: null });
   const [err, setErr] = useState('');
@@ -112,8 +113,8 @@ function NewKid({ ctx, back, onDone }) {
     if (no && ctx.data.students.some((s) => String(s.jerseyNumber) === no)) { setErr(`背番号 ${no} はもう使われています`); return shake(); }
     setSaving(true);
     try {
-      await ctx.actions.registerKid({ ...f, childName: f.childName.trim(), kana: f.kana.trim(), jerseyNumber: no });
-      toast('登録しました');
+      await ctx.actions.registerKid({ ...f, childName: f.childName.trim(), kana: f.kana.trim(), jerseyNumber: no }, { link: !forRoster });
+      toast(forRoster ? `${f.childName.trim()}さんを名簿に追加しました` : '登録しました');
       onDone();
     } catch (e) { console.error(e); setErr('保存できませんでした。もう一度お試しください'); setSaving(false); }
   };
@@ -121,9 +122,9 @@ function NewKid({ ctx, back, onDone }) {
   const input = 'w-full border border-gray-200 rounded-xl p-3 text-base bg-white outline-none focus:ring-2 focus:ring-emerald-500';
   return (
     <div>
-      <Back onClick={back} />
-      <h2 className="text-lg font-black mb-1">新しく入ったお子さんを登録</h2>
-      <p className="text-sm text-gray-500 mb-4">名簿にいないときだけ入力してください。</p>
+      {!forRoster && <Back onClick={back} />}
+      {!forRoster && <h2 className="text-lg font-black mb-1">新しく入ったお子さんを登録</h2>}
+      <p className="text-sm text-gray-500 mb-4">{forRoster ? '保護者は、初めて開いたときにこの名簿からお子さんを選べます。' : '名簿にいないときだけ入力してください。'}</p>
       <div ref={scope} className="space-y-3">
         <label className="block"><span className="text-xs text-gray-500">名前（漢字）</span><input className={input} value={f.childName} onChange={set('childName')} placeholder="例：佐藤 海斗" /></label>
         <label className="block"><span className="text-xs text-gray-500">ふりがな</span><input className={input} value={f.kana} onChange={set('kana')} placeholder="例：かいと" /></label>
@@ -134,7 +135,7 @@ function NewKid({ ctx, back, onDone }) {
         <div><span className="text-xs text-gray-500">顔写真（みんなが顔と名前を早く覚えるため）</span><PhotoPicker value={f.photo} onChange={set('photo')} /></div>
       </div>
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
-      <Press onClick={submit} disabled={saving} className="mt-4 w-full bg-emerald-600 text-white rounded-xl py-3.5 font-bold disabled:opacity-60">{saving ? '登録中…' : '登録してはじめる'}</Press>
+      <Press onClick={submit} disabled={saving} className="mt-4 w-full bg-emerald-600 text-white rounded-xl py-3.5 font-bold disabled:opacity-60">{saving ? '登録中…' : forRoster ? '名簿に追加' : '登録してはじめる'}</Press>
     </div>
   );
 }

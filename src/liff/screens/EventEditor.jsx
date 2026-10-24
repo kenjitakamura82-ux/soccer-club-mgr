@@ -25,7 +25,7 @@ export default function EventEditor({ ctx, event, open, onClose }) {
 
 function EditorBody({ ctx, event, onClose }) {
   const toast = useToast();
-  const [f, setF] = useState(event ? pick(event) : { ...EMPTY, date: todayJst() });
+  const [f, setF] = useState(event ? pick(event) : { ...EMPTY, date: todayJst(), startTime: '09:00', endTime: '17:00' });
   const [flash, setFlash] = useState(0);
   const [results, setResults] = useState([]);
   const [err, setErr] = useState('');

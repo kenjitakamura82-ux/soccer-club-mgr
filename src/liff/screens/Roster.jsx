@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Send } from 'lucide-react';
+import { Send, UserPlus } from 'lucide-react';
 import { Sheet, Press, Avatar, useShake, useToast, listVariants, itemVariants } from '../ui.jsx';
 import { jersey, inviteFlex } from '../util.js';
-import { PhotoPicker } from './Register.jsx';
+import { PhotoPicker, NewKid } from './Register.jsx';
 
 export default function Roster({ ctx }) {
   const { data, photos, has, actions } = ctx;
   const toast = useToast();
   const admin = has('admin'), guide = has('guide');
   const [edit, setEdit] = useState(null);
+  const [adding, setAdding] = useState(false);
   const kids = data.students.filter((s) => !s.id.startsWith('coach_')).sort((a, b) => jersey(a) - jersey(b));
   const famCount = (sid) => (data.members || []).filter((m) => m.studentId === sid).length;
 
@@ -23,6 +24,7 @@ export default function Roster({ ctx }) {
   return (
     <div className="p-3 space-y-3">
       {guide && <Press onClick={invite} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-3 font-bold"><Send className="w-4 h-4" />新しく入った人に案内を送る</Press>}
+      {(admin || guide) && <Press onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl py-3 font-bold"><UserPlus className="w-4 h-4" />子どもを名簿に追加</Press>}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100">
         <h3 className="font-bold px-4 pt-3 pb-1 flex">子どもの名簿 <span className="ml-2 text-gray-400 font-normal">{kids.length}人</span>{admin && <span className="ml-auto text-xs text-gray-400 font-normal self-center">押すと直せる</span>}</h3>
         <motion.ul className="divide-y divide-gray-100" variants={listVariants} initial="hidden" animate="show">
@@ -41,6 +43,9 @@ export default function Roster({ ctx }) {
       </section>
       <p className="text-xs text-gray-400 px-1">名前・背番号・写真は保護者が登録します。間違いや背番号の重なりは管理者が直します。</p>
       <KidEditSheet ctx={ctx} kid={edit} onClose={() => setEdit(null)} admin />
+      <Sheet open={adding} onClose={() => setAdding(false)} title="子どもを名簿に追加">
+        {adding && <NewKid ctx={ctx} forRoster onDone={() => setAdding(false)} />}
+      </Sheet>
     </div>
   );
 }

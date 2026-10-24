@@ -86,11 +86,11 @@ export const actions = {
   },
   saveDeadline: async (eventId, answerDeadline) => upsert('events', eventId, { answerDeadline }),
   saveRide: async (eventId, studentId, ride) => upsert('rides', `${eventId}_${studentId}`, { eventId, studentId, ...ride, updatedAt: new Date().toISOString() }, false),
-  async registerKid({ childName, kana, grade, jerseyNumber, photo }) {
+  async registerKid({ childName, kana, grade, jerseyNumber, photo }, { link = true } = {}) {
     const id = `stu_${Math.random().toString(36).slice(2, 8)}`;
     upsert('students', id, { childName, kana, grade, jerseyNumber: jerseyNumber || '' });
     if (photo) upsert('studentPhotos', id, { dataUrl: photo });
-    await actions.linkKid(id);
+    if (link) await actions.linkKid(id);
     return id;
   },
   linkKid: async (studentId) => upsert('members', meId, { studentId }),
