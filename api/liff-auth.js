@@ -50,5 +50,5 @@ export default async function handler(req, res) {
   const data = snap.exists ? snap.data() : {};
   const roles = data.roles || [];
   const token = await auth.createCustomToken(uid, { member: true, roles });
-  res.status(200).json({ token, member: { ...base, roles, studentId: data.studentId || null, noFamily: !!data.noFamily } });
+  res.status(200).json({ token, member: { ...base, roles, studentId: data.studentId || null } });
 }

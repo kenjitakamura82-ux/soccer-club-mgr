@@ -1,41 +1,23 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { UserPlus, Users, Megaphone, Camera, ChevronLeft, Search } from 'lucide-react';
+import { Camera, ChevronLeft, Search, UserPlus } from 'lucide-react';
 import { Press, Avatar, useShake, useToast, spring } from '../ui.jsx';
 import { compressPhoto, jersey } from '../util.js';
 
 const GRADES = ['年少', '年中', '年長', '1年', '2年', '3年', '4年', '5年', '6年'];
 
+// 名簿（TeamHubから入れた子）から選ぶのが基本。名簿にいない子だけ新しく入力する
 export default function Register({ ctx, onDone }) {
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState('pick');
+  const [picked, setPicked] = useState(null);
   return (
     <AnimatePresence mode="wait">
-      <motion.div key={mode || 'top'} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.2 }} className="p-4">
-        {!mode && <Choose setMode={setMode} ctx={ctx} />}
-        {mode === 'new' && <NewKid ctx={ctx} back={() => setMode(null)} onDone={onDone} />}
-        {mode === 'join' && <JoinKid ctx={ctx} back={() => setMode(null)} onDone={onDone} />}
+      <motion.div key={mode} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.2 }} className="p-4">
+        {mode === 'pick' && <PickKid ctx={ctx} onPick={(s) => { setPicked(s); setMode('photo'); }} onNew={() => setMode('new')} />}
+        {mode === 'photo' && <PhotoStep ctx={ctx} kid={picked} back={() => setMode('pick')} onDone={onDone} />}
+        {mode === 'new' && <NewKid ctx={ctx} back={() => setMode('pick')} onDone={onDone} />}
       </motion.div>
     </AnimatePresence>
-  );
-}
-
-function Item({ icon: Icon, title, sub, onClick }) {
-  return (
-    <Press onClick={onClick} className="w-full flex items-center gap-3 text-left bg-white border-2 border-gray-100 rounded-2xl p-4">
-      <Icon className="w-6 h-6 text-emerald-600 shrink-0" /><span><b className="block">{title}</b><span className="text-xs text-gray-500">{sub}</span></span>
-    </Press>
-  );
-}
-
-function Choose({ setMode, ctx }) {
-  return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-black">ようこそ、{ctx.myName}さん</h2>
-      <p className="text-sm text-gray-500 mb-2">最初の1回だけ、お子さんを登録してください。次からはこの画面は出ません。</p>
-      <Item icon={UserPlus} title="はじめて登録する" sub="名前・背番号・顔写真を入れる" onClick={() => setMode('new')} />
-      <Item icon={Users} title="家族がもう登録している" sub="父母のもう1人が登録済みのとき" onClick={() => setMode('join')} />
-      <Item icon={Megaphone} title="コーチ（子どもの登録なし）" sub="予定と担当の画面だけ使う" onClick={() => ctx.actions.skipFamily()} />
-    </div>
   );
 }
 
@@ -52,6 +34,67 @@ export function PhotoPicker({ value, onChange }) {
       {value ? '写真を変える' : '写真を選ぶ'}
       <input type="file" accept="image/*" className="absolute inset-0 opacity-0" onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await compressPhoto(f)); }} />
     </label>
+  );
+}
+
+function PickKid({ ctx, onPick, onNew }) {
+  const [q, setQ] = useState('');
+  const norm = (s) => String(s || '').replace(/\s/g, '');
+  const list = ctx.data.students
+    .filter((s) => !s.id.startsWith('coach_'))
+    .filter((s) => !q || norm(`${s.childName}${s.kana}${s.jerseyNumber}`).includes(norm(q)))
+    .sort((a, b) => jersey(a) - jersey(b) || (a.childName || '').localeCompare(b.childName || '', 'ja'));
+  return (
+    <div>
+      <h2 className="text-lg font-black">ようこそ、{ctx.myName}さん</h2>
+      <p className="text-sm text-gray-500 mt-1 mb-3">最初の1回だけ、名簿からお子さんを選んでください。父母どちらが選んでも、同じ家族としてまとまります。</p>
+      <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 mb-3 sticky top-[60px] z-10"><Search className="w-4 h-4 text-gray-400" /><input className="flex-1 py-2.5 text-base outline-none" value={q} onChange={(e) => setQ(e.target.value)} placeholder="名前や背番号で探す" /></label>
+      <motion.div layout className="grid grid-cols-3 gap-2">
+        {list.map((s) => (
+          <Press key={s.id} onClick={() => onPick(s)} className="flex flex-col items-center gap-1 rounded-2xl border-2 border-gray-100 p-2.5 bg-white">
+            <Avatar student={s} photo={ctx.photos[s.id]} size={44} />
+            <b className="text-[13px] leading-tight text-center line-clamp-2 w-full">{s.childName}</b>
+            <span className="text-[11px] text-gray-500">{s.jerseyNumber ? `#${s.jerseyNumber}` : '背番号 未定'}</span>
+          </Press>
+        ))}
+      </motion.div>
+      {!list.length && <p className="text-center text-sm text-gray-400 py-8">見つかりません</p>}
+      <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-gray-600 border border-dashed border-gray-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
+    </div>
+  );
+}
+
+function PhotoStep({ ctx, kid, back, onDone }) {
+  const toast = useToast();
+  const [photo, setPhoto] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const hasPhoto = !!ctx.photos[kid.id];
+  const finish = async (withPhoto) => {
+    setSaving(true);
+    try {
+      if (withPhoto && photo) await ctx.actions.saveKid(kid.id, { jerseyNumber: kid.jerseyNumber, photo });
+      await ctx.actions.linkKid(kid.id);
+      toast(`${kid.childName}さんの家族として登録しました`);
+      onDone();
+    } catch (e) { console.error(e); toast('保存できませんでした', 'もう一度お試しください'); setSaving(false); }
+  };
+  return (
+    <div>
+      <Back onClick={back} />
+      <div className="flex flex-col items-center text-center gap-2 mb-5">
+        <Avatar student={kid} photo={photo || ctx.photos[kid.id]} size={88} />
+        <h2 className="text-xl font-black">{kid.childName}</h2>
+        <p className="text-sm text-gray-500">{kid.jerseyNumber ? `背番号 ${kid.jerseyNumber}` : '背番号 未定'}</p>
+      </div>
+      {!hasPhoto && (
+        <div className="space-y-2 mb-4">
+          <p className="text-sm text-gray-600">顔写真を登録しませんか？ みんなが顔と名前を早く覚えられるように。あとからでも登録できます。</p>
+          <PhotoPicker value={photo} onChange={setPhoto} />
+        </div>
+      )}
+      <Press onClick={() => finish(true)} disabled={saving} className="w-full bg-emerald-600 text-white rounded-xl py-3.5 font-bold disabled:opacity-60">{saving ? '登録中…' : 'この子の家族としてはじめる'}</Press>
+      {!hasPhoto && !photo && <button onClick={() => finish(false)} disabled={saving} className="w-full text-sm text-gray-500 py-3">写真はあとで</button>}
+    </div>
   );
 }
 
@@ -79,9 +122,10 @@ function NewKid({ ctx, back, onDone }) {
   return (
     <div>
       <Back onClick={back} />
-      <h2 className="text-lg font-black mb-4">お子さんを登録</h2>
+      <h2 className="text-lg font-black mb-1">新しく入ったお子さんを登録</h2>
+      <p className="text-sm text-gray-500 mb-4">名簿にいないときだけ入力してください。</p>
       <div ref={scope} className="space-y-3">
-        <label className="block"><span className="text-xs text-gray-500">名前（漢字）</span><input className={input} value={f.childName} onChange={set('childName')} placeholder="例：海斗" /></label>
+        <label className="block"><span className="text-xs text-gray-500">名前（漢字）</span><input className={input} value={f.childName} onChange={set('childName')} placeholder="例：佐藤 海斗" /></label>
         <label className="block"><span className="text-xs text-gray-500">ふりがな</span><input className={input} value={f.kana} onChange={set('kana')} placeholder="例：かいと" /></label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block"><span className="text-xs text-gray-500">学年</span><select className={input} value={f.grade} onChange={set('grade')}>{GRADES.map((g) => <option key={g}>{g}</option>)}</select></label>
@@ -91,35 +135,6 @@ function NewKid({ ctx, back, onDone }) {
       </div>
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
       <Press onClick={submit} disabled={saving} className="mt-4 w-full bg-emerald-600 text-white rounded-xl py-3.5 font-bold disabled:opacity-60">{saving ? '登録中…' : '登録してはじめる'}</Press>
-    </div>
-  );
-}
-
-function JoinKid({ ctx, back, onDone }) {
-  const toast = useToast();
-  const [q, setQ] = useState('');
-  const [sel, setSel] = useState(null);
-  const list = ctx.data.students
-    .filter((s) => !s.id.startsWith('coach_'))
-    .filter((s) => !q || `${s.childName}${s.kana || ''}${s.jerseyNumber}`.includes(q))
-    .sort((a, b) => jersey(a) - jersey(b));
-  const submit = async () => { await ctx.actions.linkKid(sel); toast('同じ家族として登録しました'); onDone(); };
-  return (
-    <div>
-      <Back onClick={back} />
-      <h2 className="text-lg font-black mb-1">どの子のご家族ですか？</h2>
-      <p className="text-sm text-gray-500 mb-3">選ぶと、同じ家族としてまとまります。</p>
-      <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 mb-3"><Search className="w-4 h-4 text-gray-400" /><input className="flex-1 py-2.5 text-base outline-none" value={q} onChange={(e) => setQ(e.target.value)} placeholder="名前や背番号で探す" /></label>
-      <div className="grid grid-cols-3 gap-2">
-        {list.map((s) => (
-          <Press key={s.id} onClick={() => setSel(s.id)} className={`flex flex-col items-center gap-1 rounded-2xl border-2 p-2.5 bg-white ${sel === s.id ? 'border-emerald-600 bg-emerald-50' : 'border-gray-100'}`}>
-            <Avatar student={s} photo={ctx.photos[s.id]} size={44} />
-            <b className="text-sm truncate w-full text-center">{s.childName}</b>
-            <span className="text-[11px] text-gray-500">{s.jerseyNumber ? `背番号 ${s.jerseyNumber}` : '背番号 未定'}</span>
-          </Press>
-        ))}
-      </div>
-      <Press onClick={submit} disabled={!sel} className="mt-4 w-full bg-emerald-600 text-white rounded-xl py-3.5 font-bold disabled:opacity-40">はじめる</Press>
     </div>
   );
 }

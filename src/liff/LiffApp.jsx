@@ -60,7 +60,7 @@ function Main({ data, actions }) {
   const [tab, setTab] = useState('home');
   const [overlay, setOverlay] = useState(null);
   const [kidSheet, setKidSheet] = useState(false);
-  const needsRegister = !me.studentId && !me.noFamily;
+  const needsRegister = !me.studentId;
 
   if (needsRegister) return <Shell><Register ctx={ctx} onDone={() => setOverlay('welcome')} /></Shell>;
 

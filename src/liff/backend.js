@@ -72,7 +72,6 @@ export const actions = {
   },
 
   linkKid: (studentId) => updateDoc(memberDoc(me.uid), { studentId, updatedAt: now() }),
-  skipFamily: () => updateDoc(memberDoc(me.uid), { noFamily: true, updatedAt: now() }),
 
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     const patch = { jerseyNumber: jerseyNumber || '', updatedAt: now() };

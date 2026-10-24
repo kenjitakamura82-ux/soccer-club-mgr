@@ -36,9 +36,9 @@ const state = {
   studentPhotos: [],
   members: [
     { id: 'u_parent', displayName: '保護者A', roles: [], studentId: null },
-    { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['ride'], noFamily: true },
+    { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['ride'], studentId: 's2' },
     { id: 'u_yamato', displayName: '大和', roles: ['pay'], studentId: 's3' },
-    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['guide'], noFamily: true },
+    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['guide'], studentId: 's5' },
     { id: 'u_admin', displayName: '髙村', roles: ['admin'], studentId: 's4' },
   ],
 };
@@ -82,7 +82,6 @@ export const actions = {
     return id;
   },
   linkKid: async (studentId) => upsert('members', meId, { studentId }),
-  skipFamily: async () => upsert('members', meId, { noFamily: true }),
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     upsert('students', studentId, { jerseyNumber: jerseyNumber || '', ...(childName ? { childName } : {}) });
     if (photo) upsert('studentPhotos', studentId, { dataUrl: photo });

@@ -23,7 +23,7 @@ service cloud.firestore {
     match /artifacts/{appId}/members/{uid} {
       allow read: if lineMember();
       allow update: if hasRole('admin')
-        || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'noFamily', 'updatedAt']));
+        || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'updatedAt']));
     }
 
     // 練習場の案内の画像など（スクリプトから入れる。読むのはメンバーだけ）
