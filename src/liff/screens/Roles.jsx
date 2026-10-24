@@ -47,6 +47,9 @@ const DAYS = ['日', '月', '火', '水', '木', '金', '土'];
 function ReminderDay({ ctx }) {
   const toast = useToast();
   const current = Number.isInteger(ctx.data.settings?.weekendDay) ? ctx.data.settings.weekendDay : 5;
+  // 説明は送り方（下の「週末リマインドの送り方」）に合わせる
+  const relay = ctx.data.settings?.weekendMode === 'relay';
+  const relayName = (ctx.data.members || []).find((m) => m.id === (ctx.data.settings?.relayUid || (ctx.data.members || []).find((x) => (x.roles || []).includes('guide'))?.id))?.displayName;
   const change = async (d) => {
     if (d === current) return;
     await ctx.actions.saveReminderDay(d);
@@ -55,7 +58,9 @@ function ReminderDay({ ctx }) {
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
       <b>週末リマインドを送る曜日</b>
-      <p className="text-xs text-gray-500 mt-0.5 mb-3">選んだ曜日の朝7時台に「今週末の予定」がグループに届きます（1時間ほどずれることがあります）。</p>
+      <p className="text-xs text-gray-500 mt-0.5 mb-3">{relay
+        ? `選んだ曜日の朝7時台に、${relayName || '担当の人'}さんへ「今週末の予定を全体LINEに送りますか？」のお知らせが届きます。${relayName || '担当の人'}さんがボタンから全体LINEに送ります（届く時刻は1時間ほどずれることがあります）。`
+        : '選んだ曜日の朝7時台に、まちさかマネージャーが「今週末の予定」をグループに直接送ります（1時間ほどずれることがあります）。'}</p>
       <Segmented id="reminder-day" value={current} onChange={change} options={[1, 2, 3, 4, 5, 6].map((d) => ({ value: d, label: DAYS[d] }))} />
     </section>
   );
