@@ -40,7 +40,8 @@ export default function Home({ ctx, open }) {
       {events.length === 0 && <p className="text-center text-sm text-gray-400 py-16">この先6週間の予定はまだありません</p>}
 
       {/* Gmailの受信トレイ風：区切りの見出しごとに、角を丸めた白い行を詰めて並べる（2026-10-24 ユーザー決定） */}
-      <div className="pb-3">
+      {/* 予定を追加ボタンが一番下の行の出欠ボタンに重ならないよう、ボタンの分だけ下をあける */}
+      <div className={editor ? 'pb-20' : 'pb-3'}>
         {groups.map(([label, list]) => (
           <section key={label}>
             <h3 className="text-xs text-gray-500 px-4 pt-4 pb-1.5">{label}</h3>

@@ -21,7 +21,8 @@ export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /
 
 export const upcomingEvents = (events = [], days = 42) => {
   const t = todayJst();
-  const limit = new Date(parseDate(t).getTime() + days * 86400000).toISOString().slice(0, 10);
+  // 日本時間の日付どうしで足す（toISOString は世界時に直すので1日前になり、最後の日の予定が漏れていた）
+  const limit = addDays(t, days);
   return events.filter((e) => e.date && (e.endDate || e.date) >= t && e.date <= limit).sort((a, b) => a.date.localeCompare(b.date));
 };
 
