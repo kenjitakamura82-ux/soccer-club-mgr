@@ -31,6 +31,7 @@ export default function Roles({ ctx }) {
         })}
       </section>
       <ReminderDay ctx={ctx} />
+      <WeekendMode ctx={ctx} />
       <EntryCard ctx={ctx} />
       <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿だけ使えます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
@@ -55,6 +56,40 @@ function ReminderDay({ ctx }) {
       <b>週末リマインドを送る曜日</b>
       <p className="text-xs text-gray-500 mt-0.5 mb-3">選んだ曜日の朝7時台に「今週末の予定」がグループに届きます（1時間ほどずれることがあります）。</p>
       <Segmented id="reminder-day" value={current} onChange={change} options={[1, 2, 3, 4, 5, 6].map((d) => ({ value: d, label: DAYS[d] }))} />
+    </section>
+  );
+}
+
+// 週末リマインドの送り方。全体LINEに広げるときに「担当の人に頼む」に切り替える（2026-10-24 ユーザー決定）。
+// 頼む形なら、公式アカウントが使う通数は担当の人への1通だけで済む
+function WeekendMode({ ctx }) {
+  const toast = useToast();
+  const s = ctx.data.settings || {};
+  const members = (ctx.data.members || []).slice().sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '', 'ja'));
+  const mode = s.weekendMode === 'relay' ? 'relay' : 'group';
+  const guide = members.find((m) => (m.roles || []).includes('guide'));
+  const relayUid = s.relayUid || guide?.id || '';
+  const save = async (m, uid) => {
+    if (m === 'relay' && !uid) return toast('頼む人を選んでください');
+    await ctx.actions.saveWeekendMode(m, uid);
+    const who = members.find((x) => x.id === uid)?.displayName;
+    toast(m === 'relay' ? `${who}さんに頼みます` : 'グループに直接送ります', '次の送る日から反映されます');
+  };
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+      <div>
+        <b>週末リマインドの送り方</b>
+        <p className="text-xs text-gray-500 mt-0.5">「担当の人に頼む」にすると、まちさかマネージャーが担当の人に1対1でお知らせし、担当の人がボタンから全体LINEに送ります。公式アカウントの通数は1通で済みます。</p>
+      </div>
+      <Segmented id="weekend-mode" value={mode} onChange={(m) => save(m, relayUid)} options={[{ value: 'group', label: 'グループに直接送る' }, { value: 'relay', label: '担当の人に頼む' }]} />
+      {mode === 'relay' && (
+        <label className="block"><span className="text-xs text-gray-500">頼む人（まちさかマネージャーを友だち追加している人）</span>
+          <select className="w-full border border-gray-200 rounded-xl p-3 text-base bg-white" value={relayUid} onChange={(e) => save('relay', e.target.value)}>
+            {!relayUid && <option value="">選ぶ</option>}
+            {members.map((m) => <option key={m.id} value={m.id}>{m.displayName}{(m.roles || []).includes('guide') ? '（案内係）' : ''}</option>)}
+          </select>
+        </label>
+      )}
     </section>
   );
 }

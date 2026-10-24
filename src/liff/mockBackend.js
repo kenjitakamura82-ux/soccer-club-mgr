@@ -104,6 +104,7 @@ export const actions = {
   confirmTransfer: async (psId, by) => upsert('paymentStatuses', psId, { isConfirmed: true, confirmedBy: by }),
   saveRidePlan: async (eventId, cars, by) => upsert('ridePlans', eventId, { eventId, cars, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
   saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
+  saveWeekendMode: async (weekendMode, relayUid) => { state.settings = { ...state.settings, weekendMode, relayUid }; setTimeout(emit, 150); },
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   // 本番と同じく少し遅れて届く（見本の画像）
   loadVenue: async () => { await new Promise((r) => setTimeout(r, 700)); const svg = (t) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="400" height="240" fill="#e0f2fe"/><text x="200" y="130" font-size="26" text-anchor="middle" fill="#075985">${t}</text></svg>`); return { map: svg('地図（見本）'), gateNo: svg('通用門（見本）'), gateYes: svg('入口（見本）') }; },

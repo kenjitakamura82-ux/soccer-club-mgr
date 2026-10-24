@@ -184,6 +184,53 @@ export function payFlex(event, payment, liffUrl) {
   };
 }
 
+// 今週末（次の土日）の日付。line-schedule-bot の api/weekend-reminder.js の weekendDates と同じ
+export const weekendDates = () => {
+  const t = todayJst();
+  const sat = addDays(t, (6 - parseDate(t).getDay() + 7) % 7);
+  return [sat, addDays(sat, 1)];
+};
+
+// 週末リマインドのカード。line-schedule-bot の api/weekend-reminder.js の buildFlex と同じ見た目（どちらかを変えたらもう片方も直す）。
+// 担当の人に頼む送り方のときは、担当の人がこのカードを「人を選んで送る」で全体LINEに送る
+export function weekendFlex(events, liffUrl) {
+  const active = events.filter((e) => !isCanceled(e));
+  const tap = { action: { type: 'uri', label: '予定を見る', uri: liffUrl } };
+  const rows = events.map((e) => {
+    const cx = isCanceled(e);
+    const d = md(e.date);
+    return {
+      type: 'box', layout: 'horizontal', spacing: 'md',
+      contents: [
+        { type: 'box', layout: 'vertical', width: '52px', flex: 0, contents: [
+          { type: 'text', text: `${d.m}/${d.d}`, weight: 'bold', size: 'sm', color: cx ? '#999999' : '#111111' },
+          { type: 'text', text: d.w, size: 'xxs', color: '#777777' },
+        ] },
+        { type: 'box', layout: 'vertical', flex: 1, contents: cx
+          ? [{ type: 'text', text: `${e.title.replace(/【?(中止|休み)】?/g, '').trim() || '予定'} 中止`, size: 'sm', color: '#999999', decoration: 'line-through', wrap: true }]
+          : [
+              { type: 'text', text: [e.title || '予定', timeLabel(e)].filter(Boolean).join(' '), weight: 'bold', size: 'sm', wrap: true },
+              ...(e.location ? [{ type: 'text', text: e.location, size: 'xs', color: '#555555', wrap: true }] : []),
+            ] },
+      ],
+    };
+  });
+  const headline = active.length ? `今週末は${active.length}つの予定です` : '今週末の予定はすべて中止です';
+  return {
+    type: 'flex',
+    altText: `${headline}（${events.map((e) => `${dateLabel(e.date)} ${e.title}`).join('、')}）`,
+    contents: {
+      type: 'bubble',
+      header: { type: 'box', layout: 'vertical', backgroundColor: '#059669', paddingAll: '16px', ...tap, contents: [
+        { type: 'text', text: 'おはようございます', size: 'xs', color: '#d1fae5' },
+        { type: 'text', text: headline, weight: 'bold', size: 'lg', color: '#ffffff', wrap: true },
+      ] },
+      body: { type: 'box', layout: 'vertical', spacing: 'md', ...tap, contents: rows },
+      footer: { type: 'box', layout: 'vertical', paddingTop: '0px', ...tap, contents: [{ type: 'text', text: 'タップして予定を見る', size: 'xs', color: '#059669', align: 'center', weight: 'bold' }] },
+    },
+  };
+}
+
 export function inviteFlex(liffUrl) {
   return {
     type: 'flex',

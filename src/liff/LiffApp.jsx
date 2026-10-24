@@ -5,6 +5,7 @@ import { ToastProvider, Skeleton, Avatar } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
+import WeekendSend from './screens/WeekendSend.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
 import Roster, { MyKidSheet } from './screens/Roster.jsx';
@@ -58,7 +59,12 @@ function Main({ data, actions }) {
   const ctx = { data, actions, me, has, students, photos, myKid, myName: me.displayName || '保護者' };
 
   const [tab, setTab] = useState('home');
-  const [overlay, setOverlay] = useState(null);
+  // 担当の人に届くお知らせの「全体LINEに送る」は ?send=weekend 付きで開く（LIFFのURLを通すと liff.state に入ってくることもある）
+  const [overlay, setOverlay] = useState(() => {
+    const q = new URLSearchParams(location.search);
+    const send = q.get('send') || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('send');
+    return send === 'weekend' ? 'weekendSend' : null;
+  });
   const [kidSheet, setKidSheet] = useState(false);
   const needsRegister = !me.studentId;
 
@@ -110,6 +116,7 @@ function Main({ data, actions }) {
               </div>
               {overlay === 'welcome' && <Welcome ctx={ctx} onVenue={() => setOverlay('venue')} onDone={() => setOverlay(null)} />}
               {overlay === 'venue' && <Venue ctx={ctx} onDone={() => setOverlay(null)} />}
+              {overlay === 'weekendSend' && <WeekendSend ctx={ctx} onDone={() => setOverlay(null)} />}
             </div>
           </motion.div>
         )}

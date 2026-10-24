@@ -121,6 +121,10 @@ export const actions = {
   saveReminderDay: (weekendDay) =>
     setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendDay, updatedAt: now() }, { merge: true }),
 
+  // 週末リマインドの送り方。group＝公式アカウントがグループに直接送る、relay＝担当の人（relayUid）に1対1で頼み、担当の人が全体LINEに送る
+  saveWeekendMode: (weekendMode, relayUid) =>
+    setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendMode, relayUid: relayUid || null, updatedAt: now() }, { merge: true }),
+
   setRoles: (uid, roles) => updateDoc(memberDoc(uid), { roles, updatedAt: now() }),
 
   // 画像1枚ずつ別のドキュメント（1件1MBの制限があるため）。scripts/liff-admin.mjs venue で入れる
