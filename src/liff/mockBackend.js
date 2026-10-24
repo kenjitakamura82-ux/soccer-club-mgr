@@ -9,7 +9,7 @@ const state = {
     { id: 'ev1', date: day(sat), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド', hasAttachments: true, memo: '出欠は調整さんでも受付中 https://chouseisan.com/s?h=example' },
     { id: 'ev2', date: day(sun), type: '試合', title: '練習試合（△△SC）', gatherTime: '08:30', startTime: '09:30', location: '〇〇市民運動場' },
     { id: 'ev3', date: day(sat + 7), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
-    { id: 'ev4', date: day(sat + 8), type: '試合', title: '市リーグ 第5節', gatherTime: '08:40', location: '柏の葉公園 第2グラウンド', answerDeadline: day(sat + 6) },
+    { id: 'ev4', date: day(sat + 8), type: '試合', title: '市リーグ 第5節', gatherTime: '08:40', location: '柏の葉公園 第2グラウンド', answerDeadline: day(sat + 6), selection: true },
   ],
   students: [
     { id: 's1', childName: '悠斗', kana: 'ゆうと', grade: '4年', jerseyNumber: '3' },
@@ -24,6 +24,9 @@ const state = {
     { id: 'ev2_s3', eventId: 'ev2', studentId: 's3', status: '参加' },
     { id: 'ev2_s4', eventId: 'ev2', studentId: 's4', status: '参加' },
     { id: 'ev2_s2', eventId: 'ev2', studentId: 's2', status: '参加' },
+    { id: 'ev4_s2', eventId: 'ev4', studentId: 's2', status: '参加' },
+    { id: 'ev4_s3', eventId: 'ev4', studentId: 's3', status: '参加' },
+    { id: 'ev4_s4', eventId: 'ev4', studentId: 's4', status: '参加' },
   ],
   rides: [
     { id: 'ev2_s3', eventId: 'ev2', studentId: 's3', role: 'driver', capacity: 3, area: '柏の葉' },
@@ -33,13 +36,14 @@ const state = {
   payments: [{ id: 'ev2', eventId: 'ev2', isActive: true, description: '試合の参加費', amount: 500 }],
   paymentStatuses: [{ id: 'ev2_s3', eventId: 'ev2', studentId: 's3', status: 'transferred', responderName: '颯真パパ' }],
   ridePlans: [],
+  selections: [],
   settings: {},
   studentPhotos: [],
   members: [
     { id: 'u_parent', displayName: '保護者A', roles: [], studentId: null },
     { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['ride'], studentId: 's2' },
     { id: 'u_yamato', displayName: '大和', roles: ['pay'], studentId: 's3' },
-    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['guide'], studentId: 's5' },
+    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['guide', 'select'], studentId: 's5' },
     { id: 'u_admin', displayName: '髙村', roles: ['admin'], studentId: 's4' },
   ],
 };
@@ -102,6 +106,7 @@ export const actions = {
   savePayment: async (eventId, { description, amount, isActive }) => upsert('payments', eventId, { eventId, description, amount: amount ? Number(amount) : null, isActive }),
   reportTransfer: async (eventId, studentId) => upsert('paymentStatuses', `${eventId}_${studentId}`, { eventId, studentId, status: 'transferred' }),
   confirmTransfer: async (psId, by) => upsert('paymentStatuses', psId, { isConfirmed: true, confirmedBy: by }),
+  saveSelection: async (eventId, studentIds, by) => upsert('selections', eventId, { eventId, studentIds, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
   saveRidePlan: async (eventId, cars, by) => upsert('ridePlans', eventId, { eventId, cars, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
   saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
   saveWeekendMode: async (weekendMode, relayUid) => { state.settings = { ...state.settings, weekendMode, relayUid }; setTimeout(emit, 150); },

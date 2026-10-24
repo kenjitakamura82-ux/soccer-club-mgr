@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { Car, Share2, Wand2, ClipboardList, AlertTriangle } from 'lucide-react';
 import { Press, useToast, spring } from '../ui.jsx';
-import { upcomingEvents, needsRide, dateLabel, matchRides, kidName, ridePlanFlex } from '../util.js';
+import { upcomingEvents, needsRide, dateLabel, matchRides, kidName, ridePlanFlex, selectionOf, inRide } from '../util.js';
 
 export default function Coach({ ctx }) {
   const events = upcomingEvents(ctx.data.events, 21).filter(needsRide);
@@ -14,12 +14,14 @@ export default function Coach({ ctx }) {
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none]">
         {events.map((e) => (
           <Press key={e.id} onClick={() => setEventId(e.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold border ${e.id === eventId ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
-            {dateLabel(e.date)} {e.title}
+            {dateLabel(e.date)} {e.title}{e.selection && !selectionOf(ctx.data, e.id) ? '・選抜待ち' : ''}
           </Press>
         ))}
       </div>
       {/* 予定を切り替えたら作業中の割り振りも作り直す */}
-      <Planner key={event.id} ctx={ctx} event={event} />
+      {event.selection && !selectionOf(ctx.data, event.id)
+        ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は選抜ありです。選抜担当が出る子を確定すると、選ばれた子だけで配車を組めます。</p>
+        : <Planner key={event.id} ctx={ctx} event={event} />}
     </div>
   );
 }
@@ -31,7 +33,8 @@ function Planner({ ctx, event }) {
   const [cars, setCars] = useState(saved ? saved.cars : null);
   const [unmatched, setUnmatched] = useState([]);
 
-  const m = matchRides(event, data.rides, data.attendances);
+  // 選抜ありなら、選ばれた子だけで組む
+  const m = matchRides(event, data.rides, data.attendances.filter((a) => a.eventId !== event.id || inRide(event, data, a.studentId)));
   const name = (id) => kidName(students[id]);
   const auto = () => { setCars(m.cars); setUnmatched(m.unmatched); toast('割り振り案を作りました', '名前を押すと別の車に移せます'); };
 

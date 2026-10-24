@@ -6,6 +6,7 @@ import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 
 export const ROLES = [
   { id: 'ride', name: '配車担当', desc: '配車の希望を見て割り振り、グループに共有する' },
+  { id: 'select', name: '選抜担当', desc: '選抜ありの試合で、出る子を選んで確定する' },
   { id: 'pay', name: '会計', desc: '家族ごとの支払い状況を見て、確認済みにする' },
   { id: 'guide', name: '案内係', desc: '新しく入った人に案内を送る' },
   { id: 'admin', name: '管理者', desc: '役割の付け替え、名簿の修正' },

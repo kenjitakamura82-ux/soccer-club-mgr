@@ -13,6 +13,10 @@ export const startOf = (e) => e.gatherTime || e.startTime || '';
 export const timeLabel = (e) => { const s = startOf(e), t = e.endTime || ''; return s ? `${s}〜${t}` : t ? `〜${t}` : ''; };
 // 練習は車出しがないので、配車（希望の入力・配車まとめ）の対象から外す
 export const needsRide = (e) => e.type !== '練習' && !isCanceled(e);
+// 選抜（2026-10-25 ユーザー決定）。予定に selection: true が付いた試合は、選抜担当が選んだ子（selections/{予定のID} の studentIds）だけが出て、配車もその子たちだけで組む
+export const selectionOf = (data, eventId) => (data.selections || []).find((s) => s.id === eventId) || null;
+// 配車の対象になる子か。選抜ありなら、確定して選ばれた子だけ
+export const inRide = (e, data, sid) => !e.selection || !!selectionOf(data, e.id)?.studentIds?.includes(sid);
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {
@@ -227,6 +231,27 @@ export function weekendFlex(events, liffUrl) {
       ] },
       body: { type: 'box', layout: 'vertical', spacing: 'md', ...tap, contents: rows },
       footer: { type: 'box', layout: 'vertical', paddingTop: '0px', ...tap, contents: [{ type: 'text', text: 'タップして予定を見る', size: 'xs', color: '#059669', align: 'center', weight: 'bold' }] },
+    },
+  };
+}
+
+// 選抜メンバーのお知らせ。選抜担当が「人を選んで送る」で全体LINEに送る。選ばれた子の家族に配車の希望を入れてもらう
+export function selectionFlex(event, names, liffUrl) {
+  return {
+    type: 'flex',
+    altText: `選抜メンバーのお知らせ：${dateLabel(event.date)} ${event.title}`,
+    contents: {
+      type: 'bubble',
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', action: { type: 'uri', label: '開く', uri: liffUrl }, contents: [
+        { type: 'text', text: '選抜メンバーのお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
+        { type: 'separator', margin: 'md' },
+        { type: 'text', text: `${names.length}人：${names.join('、')}`, size: 'sm', wrap: true, margin: 'md' },
+        { type: 'text', text: '選ばれた子のご家族は、アプリで配車の希望を入れてください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
+      ] },
+      footer: { type: 'box', layout: 'vertical', contents: [
+        { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: '配車の希望を入れる', uri: liffUrl } },
+      ] },
     },
   };
 }

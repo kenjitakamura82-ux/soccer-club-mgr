@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarDays, Wallet, Contact, Car, Receipt, Shield, X, Loader2 } from 'lucide-react';
+import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, Shield, X, Loader2 } from 'lucide-react';
 import { ToastProvider, Skeleton, Avatar } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
 import WeekendSend from './screens/WeekendSend.jsx';
+import Select from './screens/Select.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
 import Roster, { MyKidSheet } from './screens/Roster.jsx';
@@ -74,6 +75,7 @@ function Main({ data, actions }) {
     { id: 'home', icon: CalendarDays, label: '予定' },
     myKid && { id: 'pay', icon: Wallet, label: '集金' },
     { id: 'roster', icon: Contact, label: '名簿' },
+    has('select') && { id: 'select', icon: ListChecks, label: '選抜' },
     has('ride') && { id: 'coach', icon: Car, label: '配車まとめ' },
     has('pay') && { id: 'payadmin', icon: Receipt, label: '集金確認' },
     has('admin') && { id: 'roles', icon: Shield, label: '管理' },
@@ -91,6 +93,7 @@ function Main({ data, actions }) {
             {current === 'home' && <Home ctx={ctx} open={open} />}
             {current === 'pay' && <MyPay ctx={ctx} />}
             {current === 'roster' && <Roster ctx={ctx} />}
+            {current === 'select' && <Select ctx={ctx} />}
             {current === 'coach' && <Coach ctx={ctx} />}
             {current === 'payadmin' && <PayAdmin ctx={ctx} />}
             {current === 'roles' && <Roles ctx={ctx} />}

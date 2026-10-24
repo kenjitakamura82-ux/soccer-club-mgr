@@ -7,9 +7,9 @@ import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf, c
 // 「AIで読み取る」は使うAIを決めるまで「準備中」で押せない。Vercel の環境変数 VITE_AI_PARSE=on で使える（開発の見本データでは常に使える）
 const AI_ENABLED = import.meta.env.VITE_AI_PARSE === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
 
-const EMPTY = { date: '', type: '練習', title: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '' };
+const EMPTY = { date: '', type: '練習', title: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '', selection: false };
 // 開始は集合の時刻。古い予定に集合時刻（gatherTime）があれば、それを「開始」として見せる
-const pick = (e) => ({ ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || ''])), startTime: e ? startOf(e) : '' });
+const pick = (e) => ({ ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || ''])), startTime: e ? startOf(e) : '', selection: !!e?.selection });
 // 登録済みの予定を壊さないため、「開始」は読み込んだのと同じ項目に書き戻す（集合時刻がある予定は gatherTime、無ければ startTime）。
 // 既存アプリが別々に持つ集合・開始の値はどちらも消さない
 const startKeyOf = (e) => (e?.gatherTime ? 'gatherTime' : 'startTime');
@@ -52,6 +52,9 @@ function EditorBody({ ctx, event, onClose }) {
       const { startTime, ...rest } = f;
       const data = { ...rest, title: f.title.trim(), [startKeyOf(event)]: startTime };
       if (!data.answerDeadline) delete data.answerDeadline;
+      // 選抜は練習には付けない。付けていない新しい予定には項目を足さない
+      data.selection = f.type !== '練習' && !!f.selection;
+      if (!data.selection && !event?.selection) delete data.selection;
       const kept = existing.filter((a) => !removed.includes(a.id));
       if (added.length || removed.length) data.hasAttachments = kept.length + added.length > 0;
       const id = await ctx.actions.saveEvent(event ? { ...data, id: event.id } : data);
@@ -145,6 +148,10 @@ function EditorBody({ ctx, event, onClose }) {
       <motion.div ref={scope} key={flash} initial={flash ? { backgroundColor: '#eff6ff' } : false} animate={{ backgroundColor: 'rgba(255,255,255,0)' }} transition={{ duration: 1.2 }}>
         {row('タイトル', <input id="ev-title" className={`${plain} text-lg font-bold placeholder:font-normal placeholder:text-base`} value={f.title} onChange={set('title')} placeholder="例：練習、市リーグ 第5節" />, 'ev-title')}
         {row('種別', <div className="flex flex-wrap gap-1.5 py-2">{['練習', '試合', 'その他'].map(typeChip)}</div>)}
+        {f.type !== '練習' && row('選抜', <div className="flex flex-wrap gap-1.5 py-2">{[[false, 'なし'], [true, 'あり']].map(([v, l]) => (
+          <button key={l} type="button" onClick={() => set('selection')(v)} aria-pressed={!!f.selection === v}
+            className={`rounded-lg px-3.5 py-1.5 text-sm border transition-colors ${!!f.selection === v ? 'bg-blue-100 text-blue-900 font-bold border-transparent' : 'border-gray-200 text-gray-700'}`}>{l}</button>
+        ))}<span className="text-[11px] text-gray-500 self-center">ありなら選抜担当が出る子を選ぶ</span></div>)}
         {row('日付', <input id="ev-date" type="date" className={plain} value={f.date} onChange={set('date')} />, 'ev-date')}
         {row('開始（集合）', <input id="ev-start" type="time" className={plain} value={f.startTime} onChange={set('startTime')} />, 'ev-start')}
         {row('終了（解散）', <input id="ev-end" type="time" className={plain} value={f.endTime} onChange={set('endTime')} />, 'ev-end')}

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, CalendarPlus, Pencil, Bell, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
-import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
+import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 // 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
 const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-900' : e.type === '練習' ? 'bg-green-100 text-green-900' : 'bg-blue-100 text-blue-900';
@@ -106,7 +106,11 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
   const unread = !!myKid && !canceled && !closed && !status;
   const count = data.attendances.filter((a) => a.eventId === e.id && a.status === '参加').length;
   const memo = (e.memo || '').split('\n').find((l) => l.trim()) || '';
-  const third = unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
+  const sel = e.selection ? selectionOf(data, e.id) : null;
+  const picked = !!myKid && !!sel?.studentIds.includes(myKid.id);
+  const needWish = picked && !canceled && !data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
+  const waiting = !!myKid && e.selection && !sel && status === '参加';
+  const third = needWish ? '選ばれました ・ 配車の希望を入れてください' : waiting ? '選抜待ち' : unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
   return (
     <motion.li variants={rowVariants} onClick={onOpen}
       className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 cursor-pointer active:bg-gray-100 ${first ? 'rounded-t-2xl' : 'rounded-t'} ${last ? 'rounded-b-2xl' : 'rounded-b'}`}>
@@ -121,7 +125,7 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
           ? <span className="flex items-center gap-1 text-xs text-gray-500"><Lock className="w-3.5 h-3.5" />{status ? `${status}・締切済み` : '出欠は締切済み'}</span>
           : <AttendSwitch e={e} ctx={ctx} status={status} />)}
       </div>
-      <p className={`min-w-0 truncate text-[13px] mt-1 ${unread ? 'text-amber-700' : 'text-gray-500'}`}>{third}</p>
+      <p className={`min-w-0 truncate text-[13px] mt-1 ${unread || needWish ? 'text-amber-700' : 'text-gray-500'}`}>{third}</p>
     </motion.li>
   );
 }
@@ -254,7 +258,10 @@ function EventDetail({ e, ctx, open, onEdit }) {
         </section>
       )}
 
-      {myKid && status === '参加' && needsRide(e) && !isClosed(e) && <RideForm e={e} ctx={ctx} />}
+      {e.selection && !isCanceled(e) && <SelectionSection e={e} ctx={ctx} />}
+
+      {/* 選抜ありの試合は、選ばれた子の家族にだけ出す。選抜は出欠の締切のあとに決まることがあるので、締切後も入力できる */}
+      {myKid && status === '参加' && needsRide(e) && inRide(e, data, myKid.id) && (!isClosed(e) || e.selection) && <RideForm e={e} ctx={ctx} />}
 
       <section>
         <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1 mb-2"><Users className="w-4 h-4" />参加する子（{attending.length}人）</h4>
@@ -264,6 +271,26 @@ function EventDetail({ e, ctx, open, onEdit }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function SelectionSection({ e, ctx }) {
+  const { data, students, photos, myKid } = ctx;
+  const sel = selectionOf(data, e.id);
+  const picked = (sel?.studentIds || []).map((id) => students[id]).filter(Boolean);
+  const mine = myKid && sel?.studentIds.includes(myKid.id);
+  const wished = mine && data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
+  return (
+    <section className="bg-gray-50 rounded-2xl p-3 space-y-2">
+      <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />選抜メンバー{sel && `（${picked.length}人）`}</h4>
+      {!sel && <p className="text-gray-500 text-xs">この試合は選抜があります。決まったらここに出ます。</p>}
+      {mine && !wished && <p className="text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-xs font-bold">{myKid.childName}さんが選ばれました。下で配車の希望を入れてください。</p>}
+      {sel && (
+        <div className="flex flex-wrap gap-3">
+          {picked.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
+        </div>
+      )}
+    </section>
   );
 }
 

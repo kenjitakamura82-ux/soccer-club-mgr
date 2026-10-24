@@ -50,7 +50,7 @@ export function subscribe(onData) {
   const listen = (key, ref, map = (s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))) => {
     unsubs.push(onSnapshot(ref, (snap) => { state[key] = map(snap); onData({ ...state }); }, (e) => console.error(key, e)));
   };
-  ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos'].forEach((k) => listen(k, pub(k)));
+  ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
   listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
   listen('me', memberDoc(me.uid), (s) => ({ uid: me.uid, ...me, ...s.data() }));
@@ -113,6 +113,10 @@ export const actions = {
 
   confirmTransfer: (psId, by) =>
     setDoc(pubDoc('paymentStatuses', psId), { isConfirmed: true, confirmedBy: by, confirmedAt: now(), updatedAt: now() }, { merge: true }),
+
+  // 選抜の確定（選ばれた子のID）。既存アプリ・line-schedule-bot の試合リマインドが読む
+  saveSelection: (eventId, studentIds, by) =>
+    setDoc(pubDoc('selections', eventId), { eventId, studentIds, confirmedBy: by, confirmedAt: now() }),
 
   saveRidePlan: (eventId, cars, by) =>
     setDoc(pubDoc('ridePlans', eventId), { eventId, cars, confirmedBy: by, confirmedAt: now() }),
