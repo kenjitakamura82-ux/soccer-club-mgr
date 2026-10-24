@@ -32,7 +32,7 @@ export default function LiffApp() {
   if (error) return <Centered><p className="font-bold">開けませんでした</p><p className="text-sm text-gray-500 mt-1">{error}</p><p className="text-xs text-gray-400 mt-4">LINEのグループにあるリンクから開き直してください</p></Centered>;
   // 予定一覧も揃ってから出す（揃う前に出すと一瞬「予定はまだありません」が見えるため）
   if (!backend || !data?.me || !data.students || !data.events) return <Shell><Skeleton /></Shell>;
-  return <ToastProvider><Main data={data} actions={backend.actions} /><PaidNotice /></ToastProvider>;
+  return <ToastProvider><Main data={data} actions={backend.actions} /><PaidNotice />{DEBUG && backend.timings && <Timings t={backend.timings} />}</ToastProvider>;
 }
 
 // Stripe の支払い画面から戻ってきたとき（?paid=1）。確認済みになるのは Stripe からの知らせが届いてから（ふつう数秒）
@@ -47,6 +47,20 @@ function PaidNotice() {
     if (paid) toast('お支払いを受け付けました', '数秒で「確認済み」になります');
   }, [toast]);
   return null;
+}
+
+// ?debug=1 のとき、読み込みのどこで時間がかかったかを画面の隅に出す（電波が悪いときの遅さの調査用）
+const DEBUG = (() => { const q = new URLSearchParams(location.search); return q.has('debug') || /debug/.test(q.get('liff.state') || ''); })();
+const T_LABEL = { js: 'プログラム読込', authReady: '前回ログイン確認', liffInit: 'LINE準備', eventsCache: '予定（端末）', eventsServer: '予定（最新）', serverAuth: 'サーバー確認' };
+function Timings({ t }) {
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 500); return () => clearInterval(id); }, []);
+  return (
+    <div className="fixed left-2 bottom-20 z-50 bg-black/75 text-white text-[11px] leading-snug rounded-lg px-2.5 py-2 tabular-nums pointer-events-none">
+      <p>経路：{t.path === 'cached' ? '前回ログインで開始' : 'サーバーでログイン'}</p>
+      {Object.entries(T_LABEL).map(([k, l]) => <p key={k}>{l}：{k in t ? `${(t[k] / 1000).toFixed(1)}秒` : '…'}</p>)}
+    </div>
+  );
 }
 
 function Centered({ children }) {

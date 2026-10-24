@@ -27,6 +27,13 @@ const now = () => new Date().toISOString();
 
 let me = null;
 
+// どこで時間がかかっているかを測る（LIFFのURLに ?debug=1 を付けると画面の隅に出る）。値はページを開いてからのミリ秒
+export const timings = { js: Math.round(performance.now()) };
+const mark = (k) => { if (!(k in timings)) timings[k] = Math.round(performance.now()); };
+
+// LINEの準備（liff.init）。前回のログインが残っていれば、これを待たずに画面を出す。LINEの機能を使う操作だけ、これを待つ
+let liffReady = null;
+
 // LINEでログイン → サーバーでIDトークンを確かめて Firebase のログイン用トークンをもらう
 async function signInViaServer() {
   const res = await fetch('/api/liff-auth', {
@@ -41,21 +48,31 @@ async function signInViaServer() {
 }
 
 export async function connect() {
-  // LINEの準備と、前回のFirebaseのログインの読み込みを同時に進める
-  await Promise.all([liff.init({ liffId: import.meta.env.VITE_LIFF_ID }), auth.authStateReady()]);
+  liffReady = liff.init({ liffId: import.meta.env.VITE_LIFF_ID }).then(() => mark('liffInit'));
+  await auth.authStateReady();
+  mark('authReady');
+  // 前回のFirebaseのログインが残っていれば、LINEの準備もサーバーも待たずに始める（端末に残したデータがすぐ出る）。
+  // LINEの準備ができたら、同じ人か確かめて、名前や役割の取り直しを裏で済ませる（役割の変更は次に開いたときから効く）
+  const cached = auth.currentUser;
+  if (cached?.uid?.startsWith('line_')) {
+    me = { uid: cached.uid };
+    timings.path = 'cached';
+    liffReady.then(async () => {
+      if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+      if (`line_${liff.getDecodedIDToken()?.sub}` !== cached.uid) { await auth.signOut(); location.reload(); return; }
+      await signInViaServer();
+      mark('serverAuth');
+    }).catch((e) => console.error('background sign-in', e));
+    return me;
+  }
+  timings.path = 'server';
+  await liffReady;
   if (!liff.isLoggedIn()) {
     liff.login({ redirectUri: location.href });
     return new Promise(() => {});
   }
-  // 前回と同じLINEの人がまだFirebaseにログインしたままなら、サーバーを待たずに始める。
-  // 名前や役割の取り直しは裏で済ませる（役割の変更は次に開いたときから効く、と管理タブに書いてある通り）
-  const sub = liff.getDecodedIDToken()?.sub;
-  if (sub && auth.currentUser?.uid === `line_${sub}`) {
-    me = { uid: auth.currentUser.uid };
-    signInViaServer().catch((e) => console.error('background sign-in', e));
-    return me;
-  }
   me = await signInViaServer();
+  mark('serverAuth');
   return me;
 }
 
@@ -63,7 +80,10 @@ export function subscribe(onData) {
   const state = {};
   const unsubs = [];
   const listen = (key, ref, map = (s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))) => {
-    unsubs.push(onSnapshot(ref, (snap) => { state[key] = map(snap); onData({ ...state }); }, (e) => console.error(key, e)));
+    unsubs.push(onSnapshot(ref, { includeMetadataChanges: key === 'events' }, (snap) => {
+      if (key === 'events') mark(snap.metadata.fromCache ? 'eventsCache' : 'eventsServer');
+      state[key] = map(snap); onData({ ...state });
+    }, (e) => console.error(key, e)));
   };
   ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
@@ -184,17 +204,18 @@ export const actions = {
   },
 
   async shareTargetPicker(messages) {
+    await liffReady;
     if (!liff.isApiAvailable('shareTargetPicker')) throw new Error('この端末では共有できません');
     return liff.shareTargetPicker(messages);
   },
 
   // 公式アカウントを友だち追加しているか（試合の個別リマインドは友だちにしか届かない）。分からなければ null
   async getFriendship() {
-    try { return (await liff.getFriendship()).friendFlag; } catch { return null; }
+    try { await liffReady; return (await liff.getFriendship()).friendFlag; } catch { return null; }
   },
   addFriendUrl: () => (import.meta.env.VITE_OA_BASIC_ID ? `https://line.me/R/ti/p/${encodeURIComponent(import.meta.env.VITE_OA_BASIC_ID)}` : null),
-  openUrl: (url) => liff.openWindow({ url }),
+  openUrl: async (url) => { await liffReady; liff.openWindow({ url }); },
 
   liffUrl: () => `https://liff.line.me/${import.meta.env.VITE_LIFF_ID}`,
-  close: () => (liff.isInClient() ? liff.closeWindow() : history.back()),
+  close: async () => { await liffReady; if (liff.isInClient()) liff.closeWindow(); else history.back(); },
 };
