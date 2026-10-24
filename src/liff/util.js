@@ -95,11 +95,12 @@ export function ridePlanFlex(event, plan, students, liffUrl) {
 
 // グループのアナウンスに固定する「入口カード」。どこを押してもアプリが開く。
 // アナウンスの帯には altText が出るので、そこだけ読んでも分かる文にする
-export function entryFlex(liffUrl) {
+// day は週末リマインドを送る曜日（「金」など）。今はスケジュールの確認だけに使ってもらう前提の文面
+export function entryFlex(liffUrl, day = '金') {
   const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
   return {
     type: 'flex',
-    altText: 'まちさかの予定・出欠はここから',
+    altText: 'まちさかの予定はここから',
     contents: {
       type: 'bubble',
       header: { type: 'box', layout: 'vertical', backgroundColor: '#059669', paddingAll: '18px', ...tap, contents: [
@@ -107,7 +108,8 @@ export function entryFlex(liffUrl) {
         { type: 'text', text: '予定がLINEで見られるようになりました', size: 'lg', color: '#ffffff', weight: 'bold', wrap: true },
       ] },
       body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
-        { type: 'text', text: 'いつものスケジュールを、LINEの中で開けます。出欠の回答もここからどうぞ。', size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: 'いつものスケジュールを、LINEの中で確認できます。', size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: `毎週${day}曜の朝には、このグループに招待した「まちさかマネージャー」が今週末の予定をお知らせします。`, size: 'sm', color: '#555555', wrap: true },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'md', action: { type: 'uri', label: '開く', uri: liffUrl } },
