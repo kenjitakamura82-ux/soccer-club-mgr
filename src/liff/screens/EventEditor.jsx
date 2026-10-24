@@ -8,8 +8,11 @@ import { todayJst, dateLabel, timeLabel, defaultDeadline, isCanceled, startOf } 
 const AI_ENABLED = import.meta.env.VITE_AI_PARSE === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
 
 const EMPTY = { date: '', type: '練習', title: '', startTime: '', endTime: '', location: '', memo: '', answerDeadline: '' };
-// 開始は集合の時刻。古い予定の集合時刻（gatherTime）があれば開始に入れる
+// 開始は集合の時刻。古い予定に集合時刻（gatherTime）があれば、それを「開始」として見せる
 const pick = (e) => ({ ...Object.fromEntries(Object.keys(EMPTY).map((k) => [k, e?.[k] || ''])), startTime: e ? startOf(e) : '' });
+// 登録済みの予定を壊さないため、「開始」は読み込んだのと同じ項目に書き戻す（集合時刻がある予定は gatherTime、無ければ startTime）。
+// 既存アプリが別々に持つ集合・開始の値はどちらも消さない
+const startKeyOf = (e) => (e?.gatherTime ? 'gatherTime' : 'startTime');
 
 // 予定の追加・修正（配車担当・案内係・管理者）。新規はAIで文章から読み取って入力欄を埋められる
 export default function EventEditor({ ctx, event, open, onClose }) {
@@ -38,7 +41,8 @@ function EditorBody({ ctx, event, onClose }) {
     if (!f.date || !f.title.trim()) { setErr('日付とタイトルを入れてください'); return shake(); }
     setSaving(true);
     try {
-      const data = { ...f, title: f.title.trim(), gatherTime: '' };
+      const { startTime, ...rest } = f;
+      const data = { ...rest, title: f.title.trim(), [startKeyOf(event)]: startTime };
       if (!data.answerDeadline) delete data.answerDeadline;
       await ctx.actions.saveEvent(event ? { ...data, id: event.id } : data);
       toast(event ? '予定を直しました' : '予定を追加しました', `${dateLabel(f.date)} ${f.title.trim()}`);
