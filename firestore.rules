@@ -37,6 +37,16 @@ service cloud.firestore {
       allow read: if lineMember();
     }
 
+    // 分析タブの記録。開いた記録は本人が1回だけ作れる。送った記録はメンバーが作る（週末リマインドは line-schedule-bot も書く）。読むのは管理者だけ
+    match /artifacts/{appId}/opens/{id} {
+      allow create: if lineMember() && request.resource.data.uid == request.auth.uid;
+      allow read: if hasRole('admin');
+    }
+    match /artifacts/{appId}/sends/{id} {
+      allow create, update: if lineMember();
+      allow read: if hasRole('admin');
+    }
+
     // line-schedule-bot の作業用（サーバーの管理者権限で読み書きするので、アプリからは触らせない）
     match /lineScheduleBot/{rest=**} {
       allow read, write: if false;

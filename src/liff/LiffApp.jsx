@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, Shield, X, Loader2 } from 'lucide-react';
+import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, BarChart3, Shield, X, Loader2 } from 'lucide-react';
 import { ToastProvider, Skeleton, Avatar, useToast } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
 import WeekendSend from './screens/WeekendSend.jsx';
 import Select from './screens/Select.jsx';
+import Analytics from './screens/Analytics.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
 import Roster, { MyKidSheet } from './screens/Roster.jsx';
@@ -112,6 +113,7 @@ function Main({ data, actions }) {
     has('ride') && { id: 'coach', icon: Car, label: '配車まとめ' },
     has('pay') && { id: 'payadmin', icon: Receipt, label: '集金確認' },
     has('admin') && { id: 'roles', icon: Shield, label: '管理' },
+    has('admin') && { id: 'analytics', icon: BarChart3, label: '分析' },
   ].filter(Boolean);
   const current = tabs.some((t) => t.id === tab) ? tab : 'home';
   const open = (o) => setOverlay(o);
@@ -130,13 +132,14 @@ function Main({ data, actions }) {
             {current === 'coach' && <Coach ctx={ctx} />}
             {current === 'payadmin' && <PayAdmin ctx={ctx} />}
             {current === 'roles' && <Roles ctx={ctx} />}
+            {current === 'analytics' && <Analytics ctx={ctx} />}
           </motion.div>
         </AnimatePresence>
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-[480px] bg-white border-t border-gray-200 grid z-30" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`relative py-2.5 flex flex-col items-center gap-0.5 text-[10px] font-bold ${current === t.id ? 'text-emerald-600' : 'text-gray-400'}`}>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`relative py-2.5 flex flex-col items-center gap-0.5 whitespace-nowrap tracking-tighter ${tabs.length >= 8 ? "text-[9px]" : "text-[10px]"} font-bold ${current === t.id ? 'text-emerald-600' : 'text-gray-400'}`}>
             {current === t.id && <motion.span layoutId="tab-dot" className="absolute top-0 h-0.5 w-8 bg-emerald-600 rounded-full" />}
             <t.icon className="w-5 h-5" />{t.label}
           </button>

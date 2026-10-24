@@ -16,7 +16,7 @@ export default function Roster({ ctx }) {
 
   const invite = async () => {
     try {
-      const r = await actions.shareTargetPicker([inviteFlex(actions.liffUrl())]);
+      const r = await actions.share('invite', (url) => inviteFlex(url));
       if (r) toast('案内を送りました');
     } catch (e) { toast('送れませんでした', e.message); }
   };

@@ -43,7 +43,7 @@ function Panel({ ctx, event }) {
   const share = async (ids) => {
     try {
       const names = ids.map((id) => students[id]).filter(Boolean).sort((a, b) => jersey(a) - jersey(b)).map((s) => s.childName);
-      const r = await actions.shareTargetPicker([selectionFlex(event, names, actions.liffUrl())]);
+      const r = await actions.share('selection', (url) => selectionFlex(event, names, url), { eventId: event.id, targets: ids });
       if (r) toast('選抜メンバーを知らせました');
     } catch (e) { toast('送れませんでした', e.message); }
   };

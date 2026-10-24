@@ -11,7 +11,8 @@ export default function WeekendSend({ ctx, onDone }) {
 
   const send = async () => {
     try {
-      const r = await ctx.actions.shareTargetPicker([weekendFlex(events, ctx.actions.liffUrl())]);
+      // 送信IDは週末ごとに決まった形（line-schedule-bot の api/weekend-reminder.js と同じ）
+      const r = await ctx.actions.share('weekend', (url) => weekendFlex(events, url), { sid: `weekend-${dates[0]}` });
       if (r) { toast('全体LINEに送りました'); onDone(); }
     } catch (e) { toast('送れませんでした', e.message); }
   };

@@ -49,6 +49,18 @@ const state = {
 };
 
 const attachments = {};
+// 分析タブの見本
+const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
+const mockSends = [
+  { kind: 'weekend', sid: 'weekend-a', via: 'bot', at: ago(50) },
+  { kind: 'nudge', sid: 'nudge-a', eventId: 'ev2', targets: ['s1', 's4', 's5'], by: '川口コーチ', via: 'share', at: ago(200) },
+  { kind: 'pay', sid: 'pay-a', eventId: 'ev2', targets: ['s2', 's3', 's4'], by: '大和', via: 'share', at: ago(30) },
+];
+const mockOpens = [
+  { uid: 'u_kawaguchi', src: 'weekend', sid: 'weekend-a', at: ago(49) }, { uid: 'u_yamato', src: 'weekend', sid: 'weekend-a', at: ago(48) },
+  { uid: 'u_admin', src: 'weekend', sid: 'weekend-a', at: ago(45) }, { uid: 'u_admin', src: 'nudge', sid: 'nudge-a', at: ago(190) },
+  { uid: 'u_yamato', src: 'pay', sid: 'pay-a', at: ago(29) },
+];
 const listeners = new Set();
 let meId = 'u_parent';
 const emit = () => {
@@ -120,6 +132,14 @@ export const actions = {
   removeAttachment: async (eventId, attId) => { attachments[eventId] = (attachments[eventId] || []).filter((a) => a.id !== attId); },
   loadAttachments: async (eventId) => attachments[eventId] || (eventId === 'ev1' ? [{ id: 'a1', name: '練習メニュー.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="400" height="260" fill="%23d1fae5"/><text x="200" y="140" font-size="28" text-anchor="middle" fill="%23065f46">練習メニュー（見本）</text></svg>').replace(/%2523/g, '%23') }, { id: 'a2', name: '大会要項.pdf', url: 'data:application/pdf;base64,JVBERi0=' }] : []),
   shareTargetPicker: async (messages) => { console.log('shareTargetPicker', messages); return { status: 'success' }; },
+  share: async (kind, build, meta = {}) => {
+    const sid = meta.sid || `${kind}-${Date.now().toString(36)}`;
+    console.log('shareTargetPicker', [build(`https://liff.line.me/xxxx?src=${kind}&sid=${sid}`)]);
+    const { sid: _sid, ...rest } = meta;
+    mockSends.push({ kind, sid, ...rest, by: state.members.find((m) => m.id === meId)?.displayName, via: 'share', at: new Date().toISOString() });
+    return { status: 'success' };
+  },
+  loadAnalytics: async () => { await new Promise((r) => setTimeout(r, 400)); return { sends: structuredClone(mockSends), opens: structuredClone(mockOpens) }; },
   getFriendship: async () => false,
   addFriendUrl: () => 'https://line.me/R/ti/p/%40example',
   openUrl: (url) => console.log('openUrl', url),

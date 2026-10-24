@@ -1,5 +1,6 @@
 import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
+import { tagUrl, newSid, linkTag } from './util.js';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -76,7 +77,16 @@ export async function connect() {
   return me;
 }
 
+// カードのリンクから開いた人を記録する（分析タブ用）。1回のお知らせにつき1人1件、最初に開いた時刻だけ残す（2回目以降はルールで弾かれる）
+function logOpen() {
+  const tag = linkTag();
+  if (!tag || !me?.uid) return;
+  setDoc(doc(db, 'artifacts', APP_ID, 'opens', `${tag.sid}_${me.uid}`.slice(0, 1400)), { uid: me.uid, src: tag.src, sid: tag.sid, at: now() })
+    .catch(() => {});
+}
+
 export function subscribe(onData) {
+  logOpen();
   const state = {};
   const unsubs = [];
   const listen = (key, ref, map = (s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))) => {
@@ -88,7 +98,7 @@ export function subscribe(onData) {
   ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
   listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
-  listen('me', memberDoc(me.uid), (s) => ({ uid: me.uid, ...me, ...s.data() }));
+  listen('me', memberDoc(me.uid), (s) => { me = { ...me, ...s.data() }; return { uid: me.uid, ...me }; });
   return () => unsubs.forEach((u) => u());
 }
 
@@ -207,6 +217,28 @@ export const actions = {
     await liffReady;
     if (!liff.isApiAvailable('shareTargetPicker')) throw new Error('この端末では共有できません');
     return liff.shareTargetPicker(messages);
+  },
+
+  // お知らせを送る（送り先を選ぶ画面）。リンクに印を付け、送れたら送った記録を残す（分析タブ用）。
+  // build はリンクを受け取ってメッセージを返す。meta：eventId・targets（回答を数える対象の家族＝子どものID）・sid（決まった送信IDを使うとき）
+  async share(kind, build, meta = {}) {
+    const sid = meta.sid || newSid(kind);
+    const r = await actions.shareTargetPicker([build(tagUrl(actions.liffUrl(), kind, sid))]);
+    if (r) {
+      const { sid: _sid, ...rest } = meta;
+      setDoc(doc(db, 'artifacts', APP_ID, 'sends', sid), { kind, sid, ...rest, by: me?.displayName || '', byUid: me?.uid || '', via: 'share', at: now() }, { merge: true })
+        .catch((e) => console.error('record send', e));
+    }
+    return r;
+  },
+
+  // 分析タブの元データ（管理者だけ読める）
+  async loadAnalytics() {
+    const [sends, opens] = await Promise.all([
+      getDocs(collection(db, 'artifacts', APP_ID, 'sends')),
+      getDocs(collection(db, 'artifacts', APP_ID, 'opens')),
+    ]);
+    return { sends: sends.docs.map((d) => ({ sid: d.id, ...d.data() })), opens: opens.docs.map((d) => d.data()) };
   },
 
   // 公式アカウントを友だち追加しているか（試合の個別リマインドは友だちにしか届かない）。分からなければ null

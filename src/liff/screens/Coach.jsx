@@ -39,7 +39,8 @@ function Nudge({ ctx, event }) {
   if (!unanswered.length && !noWish.length) return null;
   const send = async () => {
     try {
-      const r = await actions.shareTargetPicker([nudgeFlex(event, unanswered.length ? 'attendance' : 'ride', actions.liffUrl())]);
+      const targets = kids.filter((s) => unanswered.includes(s.childName) || noWish.includes(s.childName)).map((s) => s.id);
+      const r = await actions.share('nudge', (url) => nudgeFlex(event, unanswered.length ? 'attendance' : 'ride', url), { eventId: event.id, targets });
       if (r) toast('催促を送りました');
     } catch (e) { toast('送れませんでした', e.message); }
   };
@@ -82,7 +83,7 @@ function Planner({ ctx, event }) {
   const share = async () => {
     try {
       await actions.saveRidePlan(event.id, cars, myName);
-      const r = await actions.shareTargetPicker([ridePlanFlex(event, { cars }, students, actions.liffUrl())]);
+      const r = await actions.share('rideplan', (url) => ridePlanFlex(event, { cars }, students, url), { eventId: event.id });
       toast(r ? '配車表を共有しました' : '確定しました', r ? undefined : '共有はキャンセルされました');
     } catch (e) { console.error(e); toast('共有できませんでした', e.message); }
   };

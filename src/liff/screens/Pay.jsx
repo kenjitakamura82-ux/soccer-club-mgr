@@ -61,7 +61,9 @@ export function MyPay({ ctx }) {
 // 集金を知らせるカードを全体LINEに送る（会計の人が送り先を選ぶ）
 async function announce(ctx, toast, event, payment) {
   try {
-    const r = await ctx.actions.shareTargetPicker([payFlex(event, payment, ctx.actions.liffUrl())]);
+    // 回答（支払い）を数える対象：参加と答えた子
+    const targets = ctx.data.attendances.filter((a) => a.eventId === event.id && a.status === '参加').map((a) => a.studentId);
+    const r = await ctx.actions.share('pay', (url) => payFlex(event, payment, url), { eventId: event.id, targets });
     if (r) toast('集金のお知らせを送りました');
   } catch (e) { toast('送れませんでした', e.message); }
 }

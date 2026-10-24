@@ -106,7 +106,7 @@ function EntryCard({ ctx }) {
   const send = async () => {
     try {
       const day = DAYS[Number.isInteger(ctx.data.settings?.weekendDay) ? ctx.data.settings.weekendDay : 5];
-      const r = await ctx.actions.shareTargetPicker([entryFlex(ctx.actions.liffUrl(), day)]);
+      const r = await ctx.actions.share('entry', (url) => entryFlex(url, day));
       if (r) toast('入口カードを送りました', '送ったカードを長押しして、アナウンスに固定してみてください');
     } catch (e) { toast('送れませんでした', e.message); }
   };

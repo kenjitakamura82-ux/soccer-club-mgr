@@ -98,6 +98,14 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 - Stripe の webhook：送り先 `https://soccer-club-mgr.vercel.app/api/stripe-webhook`、イベント `checkout.session.completed`
 - テスト用カード：4242 4242 4242 4242（有効期限は未来の日付、CVCは何でも）
 
+## 分析タブ（管理者だけ）
+
+- お知らせのカードのリンクに `src`（種類）と `sid`（1回ごとの送信ID）を付けて送り、送れたら `artifacts/{appId}/sends/{sid}` に記録する（送り先を選んで送るものは `actions.share`、週末リマインドは line-schedule-bot も書く）
+- そのリンクから開いた人を `artifacts/{appId}/opens/{sid}_{uid}` に記録する（1人1件、最初に開いた時刻だけ）
+- 回答は `attendances` / `rides` / `paymentStatuses` の更新時刻と突き合わせる。対象の家族（`targets`）は送った時点で決める（回答のお願い＝まだの家族、選抜＝選ばれた子、集金＝参加の子）
+- LINEは届いた人数・既読を教えてくれないので、到達率の代わりに「開いた家族の割合」を出す
+- 読めるのは管理者だけ（firestore.rules）
+
 ## 出欠の締切と変更
 
 - 締切は予定の `answerDeadline`（YYYY-MM-DD、その日の終わりまで）。無ければ練習など3日前、試合は2週間前

@@ -1,5 +1,16 @@
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
 
+// お知らせのリンクに「どのお知らせから来たか」の印を付ける（分析タブ用）。src＝種類、sid＝1回ごとの送信
+export const tagUrl = (url, src, sid) => `${url}${url.includes('?') ? '&' : '?'}src=${encodeURIComponent(src)}&sid=${encodeURIComponent(sid)}`;
+export const newSid = (src) => `${src}-${Date.now().toString(36)}`;
+// 開いたURL（LIFFのURLを通ると liff.state に入ってくる）から src / sid を取り出す
+export const linkTag = () => {
+  const q = new URLSearchParams(location.search);
+  const inner = new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, ''));
+  const get = (k) => q.get(k) || inner.get(k);
+  return get('sid') ? { src: get('src') || '', sid: get('sid') } : null;
+};
+
 export const todayJst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
 export const parseDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
