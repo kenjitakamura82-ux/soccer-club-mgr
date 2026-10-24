@@ -60,6 +60,10 @@ export const actions = {
   saveAttendance: (eventId, studentId, status, name) =>
     setDoc(pubDoc('attendances', `${eventId}_${studentId}`), { eventId, studentId, status, responderName: name, updatedAt: now() }, { merge: true }),
 
+  // 出欠の締切（YYYY-MM-DD）。既存アプリ・line-schedule-bot は読まない項目なので、足しても影響しない
+  saveDeadline: (eventId, answerDeadline) =>
+    setDoc(pubDoc('events', eventId), { answerDeadline, updatedAt: now() }, { merge: true }),
+
   saveRide: (eventId, studentId, ride, name) =>
     setDoc(pubDoc('rides', `${eventId}_${studentId}`), { eventId, studentId, ...ride, responderName: name, updatedAt: now() }),
 

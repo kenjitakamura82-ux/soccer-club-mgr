@@ -16,6 +16,16 @@ export const upcomingEvents = (events = [], days = 42) => {
   return events.filter((e) => e.date && (e.endDate || e.date) >= t && e.date <= limit).sort((a, b) => a.date.localeCompare(b.date));
 };
 
+// 出欠の締切。予定に answerDeadline（YYYY-MM-DD）があればそれ、なければ練習は3日前・試合は2週間前（その日の終わりまで）
+export const DEFAULT_DEADLINE_DAYS = { 試合: 14, default: 3 };
+export const addDays = (s, n) => { const d = parseDate(s); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export const defaultDeadline = (e) => addDays(e.date, -(DEFAULT_DEADLINE_DAYS[e.type] ?? DEFAULT_DEADLINE_DAYS.default));
+export const deadlineOf = (e) => e.answerDeadline || defaultDeadline(e);
+export const isClosed = (e) => todayJst() > deadlineOf(e);
+
+// 締切を変えられるのは役割を持つコーチ（配車担当・案内係）と管理者
+export const canEditDeadline = (has) => has('ride') || has('guide') || has('admin');
+
 export const jersey = (s) => (s?.jerseyNumber ? Number(s.jerseyNumber) : 999);
 export const kidName = (s) => s?.childName || '不明';
 

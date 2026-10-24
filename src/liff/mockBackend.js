@@ -9,7 +9,7 @@ const state = {
     { id: 'ev1', date: day(sat), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
     { id: 'ev2', date: day(sun), type: '試合', title: '練習試合（△△SC）', gatherTime: '08:30', startTime: '09:30', location: '〇〇市民運動場' },
     { id: 'ev3', date: day(sat + 7), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
-    { id: 'ev4', date: day(sat + 8), type: '試合', title: '市リーグ 第5節', gatherTime: '08:40', location: '柏の葉公園 第2グラウンド' },
+    { id: 'ev4', date: day(sat + 8), type: '試合', title: '市リーグ 第5節', gatherTime: '08:40', location: '柏の葉公園 第2グラウンド', answerDeadline: day(sat + 6) },
   ],
   students: [
     { id: 's1', childName: '悠斗', kana: 'ゆうと', grade: '4年', jerseyNumber: '3' },
@@ -72,8 +72,9 @@ export function subscribe(fn) {
 }
 
 export const actions = {
-  saveAttendance: async (eventId, studentId, status) => upsert('attendances', `${eventId}_${studentId}`, { eventId, studentId, status }),
-  saveRide: async (eventId, studentId, ride) => upsert('rides', `${eventId}_${studentId}`, { eventId, studentId, ...ride }, false),
+  saveAttendance: async (eventId, studentId, status) => upsert('attendances', `${eventId}_${studentId}`, { eventId, studentId, status, updatedAt: new Date().toISOString() }),
+  saveDeadline: async (eventId, answerDeadline) => upsert('events', eventId, { answerDeadline }),
+  saveRide: async (eventId, studentId, ride) => upsert('rides', `${eventId}_${studentId}`, { eventId, studentId, ...ride, updatedAt: new Date().toISOString() }, false),
   async registerKid({ childName, kana, grade, jerseyNumber, photo }) {
     const id = `stu_${Math.random().toString(36).slice(2, 8)}`;
     upsert('students', id, { childName, kana, grade, jerseyNumber: jerseyNumber || '' });
