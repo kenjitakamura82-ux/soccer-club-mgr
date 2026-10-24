@@ -100,12 +100,12 @@ export function entryFlex(liffUrl, day = '金') {
   const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
   return {
     type: 'flex',
-    altText: 'まちさかの予定はここから',
+    altText: 'まちサカの予定はこちら',
     contents: {
       type: 'bubble',
       header: { type: 'box', layout: 'vertical', backgroundColor: '#059669', paddingAll: '18px', ...tap, contents: [
         { type: 'text', text: 'まちさかマネージャー', size: 'xs', color: '#d1fae5', weight: 'bold' },
-        { type: 'text', text: '予定がLINEで見られるようになりました', size: 'lg', color: '#ffffff', weight: 'bold', wrap: true },
+        { type: 'text', text: 'まちサカの予定はこちら', size: 'lg', color: '#ffffff', weight: 'bold', wrap: true },
       ] },
       body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
         { type: 'text', text: 'いつものスケジュールを、LINEの中で確認できます。', size: 'sm', color: '#555555', wrap: true },

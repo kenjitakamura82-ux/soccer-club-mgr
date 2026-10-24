@@ -72,7 +72,7 @@ function EntryCard({ ctx }) {
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
       <b>グループの入口</b>
-      <p className="text-xs text-gray-500 mt-0.5 mb-3">「予定がLINEで見られるようになりました」のカードをグループに送ります。送ったカードを長押しして、アナウンスに固定してください。</p>
+      <p className="text-xs text-gray-500 mt-0.5 mb-3">「まちサカの予定はこちら」のカードをグループに送ります。送ったカードを長押しして、アナウンスに固定してください。</p>
       <Press onClick={send} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-2.5 font-bold text-sm"><Send className="w-4 h-4" />入口カードをグループに送る</Press>
     </section>
   );
