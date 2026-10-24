@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock, Wallet, Plus, Send, Pencil } from 'lucide-react';
+import { Clock, Wallet, Plus, Send, Pencil, CreditCard } from 'lucide-react';
 import { Press, Avatar, DrawCheck, Sheet, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import { dateLabel, jersey, isCanceled, todayJst, addDays, payFlex } from '../util.js';
 
@@ -10,11 +10,20 @@ const activePayments = (data) => data.payments
   .filter((p) => p.event)
   .sort((a, b) => b.event.date.localeCompare(a.event.date));
 
+// カード払い（Stripe）は Vercel の環境変数 VITE_CARD_PAY=on で出す（開発の見本データでは常に出す）
+const CARD_PAY = import.meta.env.VITE_CARD_PAY === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
+
 const statusOf = (ps) => !ps || ps.status !== 'transferred' ? 'todo' : ps.isConfirmed ? 'done' : 'wait';
 
 export function MyPay({ ctx }) {
   const { data, myKid, actions, myName } = ctx;
   const toast = useToast();
+  const [opening, setOpening] = useState(null);
+  const card = async (eventId) => {
+    setOpening(eventId);
+    try { await actions.startCardPay(eventId); } catch (e) { toast('支払い画面を開けませんでした', e.message); }
+    setOpening(null);
+  };
   const list = activePayments(data);
   if (!list.length) return <Empty />;
   return (
@@ -30,9 +39,15 @@ export function MyPay({ ctx }) {
             <div className="mt-3 min-h-[52px] grid place-items-center">
               <AnimatePresence mode="wait">
                 <motion.div key={st} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }} transition={spring} className="w-full grid place-items-center">
-                  {st === 'todo' && <Press onClick={async () => { await actions.reportTransfer(p.event.id, myKid.id, myName); toast('会計に報告しました', '確認されると「確認済み」になります'); }} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">ことら送金した</Press>}
+                  {st === 'todo' && (
+                    <div className="w-full space-y-2">
+                      {CARD_PAY && p.amount > 0 && <Press onClick={() => card(p.event.id)} disabled={opening === p.event.id} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold disabled:opacity-60"><CreditCard className="w-4 h-4" />{opening === p.event.id ? '支払い画面を開いています…' : 'カードで払う'}</Press>}
+                      <Press onClick={async () => { await actions.reportTransfer(p.event.id, myKid.id, myName); toast('会計に報告しました', '確認されると「確認済み」になります'); }} className={`w-full rounded-xl py-3 font-bold ${CARD_PAY && p.amount > 0 ? 'bg-white border border-gray-200 text-gray-700' : 'bg-emerald-600 text-white'}`}>ことら送金した</Press>
+                      {CARD_PAY && p.amount > 0 && <p className="text-[11px] text-gray-500 text-center">カードで払うと、会計の確認を待たずに「確認済み」になります</p>}
+                    </div>
+                  )}
                   {st === 'wait' && <span className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 rounded-full px-4 py-2 font-bold text-sm"><Clock className="w-4 h-4" />会計の確認待ち</span>}
-                  {st === 'done' && <span className="inline-flex items-center gap-2 text-emerald-700 font-black"><DrawCheck size={36} />確認済み</span>}
+                  {st === 'done' && <span className="inline-flex items-center gap-2 text-emerald-700 font-black"><DrawCheck size={36} />確認済み{ps?.method === 'card' && <span className="text-xs font-bold text-gray-500">（カード）</span>}</span>}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -90,12 +105,12 @@ export function PayAdmin({ ctx }) {
                     <Avatar student={s} photo={photos[sid]} size={30} />
                     <span className="flex-1 truncate">{s?.childName || ps?.responderName || '不明'}の家族</span>
                     {st === 'wait' && <Press onClick={async () => { await actions.confirmTransfer(ps.id, myName); toast('確認済みにしました'); }} className="bg-emerald-600 text-white rounded-lg px-2.5 py-1 text-xs font-bold">入金を確認した</Press>}
-                    <span className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${st === 'done' ? 'bg-emerald-50 text-emerald-700' : st === 'wait' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{st === 'done' ? '確認済み' : st === 'wait' ? '確認待ち' : '未報告'}</span>
+                    <span className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${st === 'done' ? 'bg-emerald-50 text-emerald-700' : st === 'wait' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{st === 'done' ? (ps?.method === 'card' ? 'カードで支払い済み' : '確認済み') : st === 'wait' ? '確認待ち' : '未報告'}</span>
                   </li>
                 );
               })}
             </ul>
-            <p className="text-[11px] text-gray-400 mt-2">ことら送金の入金を銀行アプリで確かめてから押してください</p>
+            <p className="text-[11px] text-gray-400 mt-2">ことら送金の入金を銀行アプリで確かめてから押してください。カードで払われた分は自動で確認済みになります</p>
           </section>
         );
       })}

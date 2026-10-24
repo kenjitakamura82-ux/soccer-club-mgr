@@ -108,6 +108,18 @@ export const actions = {
   savePayment: (eventId, { description, amount, isActive }, by) =>
     setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, isActive, setBy: by, updatedAt: now() }, { merge: true }),
 
+  // カード払い（Stripe）。サーバーが支払い画面を作るので、そこへ移る。払い終わると LINE版に ?paid=1 で戻ってくる
+  async startCardPay(eventId) {
+    const res = await fetch('/api/pay-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` },
+      body: JSON.stringify({ eventId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `支払い画面を開けませんでした（${res.status}）`);
+    location.href = data.url;
+  },
+
   reportTransfer: (eventId, studentId, name) =>
     setDoc(pubDoc('paymentStatuses', `${eventId}_${studentId}`), { eventId, studentId, responderName: name, status: 'transferred', transferredAt: now(), updatedAt: now() }, { merge: true }),
 

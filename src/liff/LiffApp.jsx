@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, Shield, X, Loader2 } from 'lucide-react';
-import { ToastProvider, Skeleton, Avatar } from './ui.jsx';
+import { ToastProvider, Skeleton, Avatar, useToast } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
@@ -31,7 +31,21 @@ export default function LiffApp() {
 
   if (error) return <Centered><p className="font-bold">開けませんでした</p><p className="text-sm text-gray-500 mt-1">{error}</p><p className="text-xs text-gray-400 mt-4">LINEのグループにあるリンクから開き直してください</p></Centered>;
   if (!backend || !data?.me || !data.students) return <Shell><Skeleton /></Shell>;
-  return <ToastProvider><Main data={data} actions={backend.actions} /></ToastProvider>;
+  return <ToastProvider><Main data={data} actions={backend.actions} /><PaidNotice /></ToastProvider>;
+}
+
+// Stripe の支払い画面から戻ってきたとき（?paid=1）。確認済みになるのは Stripe からの知らせが届いてから（ふつう数秒）
+function PaidNotice() {
+  const toast = useToast();
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current) return;
+    shown.current = true;
+    const q = new URLSearchParams(location.search);
+    const paid = q.get('paid') === '1' || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('paid') === '1';
+    if (paid) toast('お支払いを受け付けました', '数秒で「確認済み」になります');
+  }, [toast]);
+  return null;
 }
 
 function Centered({ children }) {
@@ -59,7 +73,11 @@ function Main({ data, actions }) {
   const myKid = me.studentId ? students[me.studentId] : null;
   const ctx = { data, actions, me, has, students, photos, myKid, myName: me.displayName || '保護者' };
 
-  const [tab, setTab] = useState('home');
+  const paidBack = (() => {
+    const q = new URLSearchParams(location.search);
+    return q.get('paid') === '1' || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('paid') === '1';
+  })();
+  const [tab, setTab] = useState(paidBack ? 'pay' : 'home');
   // 担当の人に届くお知らせの「全体LINEに送る」は ?send=weekend 付きで開く（LIFFのURLを通すと liff.state に入ってくることもある）
   const [overlay, setOverlay] = useState(() => {
     const q = new URLSearchParams(location.search);

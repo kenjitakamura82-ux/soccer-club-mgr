@@ -85,8 +85,18 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 
 ## 試合の個別リマインド
 
-- line-schedule-bot の `api/match-reminder.js`。締切の3日前と前日の朝に、未回答の家族へ公式アカウントから1対1で送る（父母とも）
-- 届くのは公式アカウントを友だち追加した人だけ。LINEログインのチャネルに公式アカウントをリンクし、LIFFの「友だち追加オプション」をオンにする（初回の許可画面ですすめられる）。追加していない人には予定画面に案内が出る（`VITE_OA_BASIC_ID` が必要）
+- 2026-10-25 から公式アカウントの自動送信はやめた。配車担当が「配車まとめ」の「回答がまだの家族」から「催促を送る」で、送り先を選んで自分で送る（名前はカードに載せない）
+- line-schedule-bot の `api/match-reminder.js` は残してあり、cron を戻せば元に戻る
+
+## カード払い（Stripe）
+
+- 保護者の「集金」タブの「カードで払う」→ `api/pay-checkout.js` がその家族・その集金の Stripe 支払い画面を作る → 払い終わると Stripe が `api/stripe-webhook.js` に知らせ、`paymentStatuses` が自動で確認済み（`method: 'card'`）になる。ことら送金の消し込みをなくすため（2026-10-25 ユーザー決定）
+- 手数料（国内カード3.6%）はチームが持つ。保護者には集金額そのままを請求する
+- 金額と子どもはサーバーが集金の設定とメンバーから決める（画面からは受け取らない）
+- 最初はユーザーのStripeアカウントの**テストモード**で試す。名義を変えるときは鍵（環境変数）を入れ替えて、webhook の送り先を新しいアカウントで登録し直すだけ（コードは変えない）。切り替え前の入金・履歴は前のアカウントに残る
+- 環境変数（soccer-club-mgr）：`STRIPE_SECRET_KEY`（sk_test_… / 本番は sk_live_…）、`STRIPE_WEBHOOK_SECRET`（whsec_…）、`VITE_CARD_PAY=on`（ボタンを出す。入れたあと再デプロイが要る）
+- Stripe の webhook：送り先 `https://soccer-club-mgr.vercel.app/api/stripe-webhook`、イベント `checkout.session.completed`
+- テスト用カード：4242 4242 4242 4242（有効期限は未来の日付、CVCは何でも）
 
 ## 出欠の締切と変更
 
