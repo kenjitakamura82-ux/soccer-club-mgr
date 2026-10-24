@@ -320,14 +320,17 @@ function RideForm({ e, ctx }) {
   const toast = useToast();
   const current = ctx.data.rides.find((r) => r.eventId === e.id && r.studentId === ctx.myKid.id) || {};
   const [role, setRole] = useState(current.role || 'none');
-  const [capacity, setCapacity] = useState(current.capacity || 3);
+  // 「乗せられる人数」は自分の子も含めて聞く（seatsTotal）。既存アプリと割り振りは capacity を「ほかの子の席数」として使うので、1引いて capacity にも入れる
+  const [seats, setSeats] = useState(current.seatsTotal || (current.capacity ? current.capacity + 1 : 4));
   const [count, setCount] = useState(current.count || 1);
+  // 車を出せる家族が、ほかの車に乗り合わせることになったときに乗せてほしい人数
+  const [mergedCount, setMergedCount] = useState(current.countIfMerged || 1);
   const [area, setArea] = useState(current.area || '柏の葉');
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     setSaving(true);
-    const ride = { role, area, ...(role === 'driver' ? { capacity } : role === 'rider' ? { count, type: 'child_only' } : {}) };
+    const ride = { role, area, ...(role === 'driver' ? { capacity: seats - 1, seatsTotal: seats, countIfMerged: mergedCount } : role === 'rider' ? { count, type: 'child_only' } : {}) };
     try { await ctx.actions.saveRide(e.id, ctx.myKid.id, ride, ctx.myName); toast('配車の希望を保存しました', '配車担当にだけ届きます'); }
     catch (err) { console.error(err); toast('保存できませんでした'); }
     setSaving(false);
@@ -338,8 +341,13 @@ function RideForm({ e, ctx }) {
       <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Car className="w-4 h-4" />配車の希望</h4>
       <Segmented id={`ride-${e.id}`} value={role} onChange={setRole} options={[{ value: 'driver', label: '車を出せる' }, { value: 'rider', label: '乗せてほしい' }, { value: 'none', label: '不要' }]} />
       <motion.div layout transition={spring} className="space-y-3 overflow-hidden">
-        {role === 'driver' && <div><p className="text-xs text-gray-500 mb-2">子どもを何人乗せられる？</p><Stepper value={capacity} onChange={setCapacity} min={1} max={6} /></div>}
-        {role === 'rider' && <div><p className="text-xs text-gray-500 mb-2">乗せてほしい人数</p><Stepper value={count} onChange={setCount} min={1} max={4} /></div>}
+        {role === 'driver' && (
+          <>
+            <div><p className="text-xs text-gray-500 mb-2">子どもを何人乗せられる？（自分の子も含めて）</p><Stepper value={seats} onChange={setSeats} min={2} max={7} /></div>
+            <div><p className="text-xs text-gray-500 mb-2">ほかの車に乗り合わせることになったら、何人乗せてほしい？</p><Stepper value={mergedCount} onChange={setMergedCount} min={1} max={4} upTo={false} /></div>
+          </>
+        )}
+        {role === 'rider' && <div><p className="text-xs text-gray-500 mb-2">乗せてほしい人数</p><Stepper value={count} onChange={setCount} min={1} max={4} upTo={false} /></div>}
         {role !== 'none' && (
           <div><p className="text-xs text-gray-500 mb-2">{role === 'driver' ? '出発する場所' : '乗る場所'}</p>
             <Segmented id={`area-${e.id}`} value={area} onChange={setArea} options={[{ value: '柏の葉', label: '柏の葉' }, { value: '柏たなか', label: '柏たなか' }]} />

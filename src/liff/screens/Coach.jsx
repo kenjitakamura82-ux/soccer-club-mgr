@@ -76,7 +76,7 @@ function Planner({ ctx, event }) {
       <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-sm">
         <h3 className="font-bold flex items-center gap-2 mb-2"><ClipboardList className="w-5 h-5 text-emerald-600" />集まった希望</h3>
         <dl className="grid grid-cols-[6.5em_1fr] gap-y-2">
-          <dt className="text-gray-500">車を出せる</dt><dd>{m.cars.length ? m.cars.map((c) => `${name(c.driver)}家（${c.area}・${c.capacity}人）`).join('、') : 'なし'}</dd>
+          <dt className="text-gray-500">車を出せる</dt><dd>{m.cars.length ? m.cars.map((c) => { const r = data.rides.find((x) => x.eventId === event.id && x.studentId === c.driver); return `${name(c.driver)}家（${c.area}・ほかに${c.capacity}人${r?.countIfMerged ? `／乗り合わせなら${r.countIfMerged}人` : ''}）`; }).join('、') : 'なし'}</dd>
           <dt className="text-gray-500">乗せてほしい</dt><dd>{m.riders.length ? m.riders.map((r) => `${name(r.studentId)}（${r.area}）`).join('、') : 'なし'}</dd>
         </dl>
       </section>

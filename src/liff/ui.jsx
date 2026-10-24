@@ -139,7 +139,7 @@ export function useShake() {
 }
 
 /* ---------- 人数ステッパー（数字が入れ替わる） ---------- */
-export function Stepper({ value, min = 1, max = 6, onChange, unit = '人' }) {
+export function Stepper({ value, min = 1, max = 6, onChange, unit = '人', upTo = true }) {
   const [scope, shake] = useShake();
   const [dir, setDir] = useState(1);
   const step = (d) => {
@@ -159,7 +159,7 @@ export function Stepper({ value, min = 1, max = 6, onChange, unit = '人' }) {
         </AnimatePresence>
       </span>
       <Press type="button" onClick={() => step(1)} aria-label="増やす" className="w-11 h-11 rounded-full border-2 border-gray-200 grid place-items-center bg-white"><Plus className="w-5 h-5" /></Press>
-      <span className="text-sm text-gray-500">{unit}まで</span>
+      <span className="text-sm text-gray-500">{unit}{upTo ? 'まで' : ''}</span>
     </div>
   );
 }
