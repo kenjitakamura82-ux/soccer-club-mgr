@@ -28,6 +28,18 @@ export const needsRide = (e) => e.type === '試合' && !isCanceled(e);
 export const selectionOf = (data, eventId) => (data.selections || []).find((s) => s.id === eventId) || null;
 // 配車の対象になる子か。選抜ありなら、確定して選ばれた子だけ
 export const inRide = (e, data, sid) => !e.selection || !!selectionOf(data, e.id)?.studentIds?.includes(sid);
+// 集金（2026-10-25 ユーザー決定）。予定の集金は payments/{予定のID}、個別の集金（入会費・ユニフォーム代など）は kind: 'custom' で targets に払う子を持つ
+export const paymentEvent = (p, data) => (p.kind === 'custom' ? null : data.events.find((e) => e.id === (p.eventId || p.id)) || null);
+// 払う対象の子ども。予定の集金は「参加」の子（選抜ありなら選ばれた子だけ）、個別の集金は指定された子。api/pay-checkout.js も同じ決め方
+export const payTargets = (p, data) => {
+  if (p.kind === 'custom') return p.targets || [];
+  const e = paymentEvent(p, data);
+  if (!e) return [];
+  return data.attendances.filter((a) => a.eventId === e.id && a.status === '参加' && inRide(e, data, a.studentId)).map((a) => a.studentId);
+};
+// カード・Apple Pay の手数料（Stripe の国内カード 3.6%）を含めた金額（10円単位で切り上げ）。全員同じ金額にするための目安
+export const CARD_FEE_RATE = 0.036;
+export const withCardFee = (n) => Math.ceil(n / (1 - CARD_FEE_RATE) / 10) * 10;
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {
@@ -185,17 +197,20 @@ export function entryFlex(liffUrl, day = '金') {
 export function payFlex(event, payment, liffUrl) {
   const yen = payment.amount ? `¥${Number(payment.amount).toLocaleString()}` : '';
   const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
+  // 個別の集金（入会費など）は予定が無いので、集金の名前を見出しにする
+  const head = event ? `${dateLabel(event.date)} ${event.title}` : payment.title || '集金';
+  const what = event ? payment.description || '集金' : '対象のご家族へのお知らせです';
   return {
     type: 'flex',
-    altText: `集金のお知らせ：${dateLabel(event.date)} ${event.title}${yen ? ` ${yen}` : ''}`,
+    altText: `集金のお知らせ：${head}${yen ? ` ${yen}` : ''}`,
     contents: {
       type: 'bubble',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
         { type: 'text', text: '集金のお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
-        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
-        { type: 'text', text: payment.description || '集金', size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: head, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: what, size: 'sm', color: '#555555', wrap: true },
         ...(yen ? [{ type: 'text', text: yen, size: 'xxl', weight: 'bold', margin: 'md' }] : []),
-        { type: 'text', text: 'ことら送金をしたら、アプリの「集金」で「ことら送金した」を押してください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
+        { type: 'text', text: 'アプリの「集金」から、カード・Apple Pay で払えます。ことら送金をしたら「ことら送金した」を押してください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで確認する', uri: liffUrl } },

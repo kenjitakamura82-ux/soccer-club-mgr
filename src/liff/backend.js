@@ -165,6 +165,13 @@ export const actions = {
     location.href = data.url;
   },
 
+  // 個別の集金（入会費・ユニフォーム代など）。予定にひも付かないので ID は custom-…。支払いの記録（paymentStatuses）の eventId にはこの ID が入る
+  async saveCustomPayment(id, fields, by) {
+    const pid = id || `custom-${crypto.randomUUID().slice(0, 8)}`;
+    await setDoc(pubDoc('payments', pid), { ...fields, kind: 'custom', setBy: by, updatedAt: now(), ...(id ? {} : { createdAt: now() }) }, { merge: true });
+    return pid;
+  },
+
   reportTransfer: (eventId, studentId, name) =>
     setDoc(pubDoc('paymentStatuses', `${eventId}_${studentId}`), { eventId, studentId, responderName: name, status: 'transferred', transferredAt: now(), updatedAt: now() }, { merge: true }),
 

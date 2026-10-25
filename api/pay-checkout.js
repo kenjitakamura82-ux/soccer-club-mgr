@@ -39,8 +39,18 @@ export default async function handler(req, res) {
   const studentId = member.data()?.studentId;
   const p = payment.data();
   const e = event.data();
+  const custom = p?.kind === 'custom';
   if (!studentId) return res.status(400).json({ error: 'お子さんが登録されていません' });
-  if (!p?.isActive || !(p.amount > 0) || !e) return res.status(400).json({ error: 'この集金はカードで払えません' });
+  if (!p?.isActive || !(p.amount > 0) || (!custom && !e)) return res.status(400).json({ error: 'この集金はカードで払えません' });
+
+  // 払う対象か（src/liff/util.js の payTargets と同じ決め方）。個別の集金は指定された子、予定の集金は「参加」の子で、選抜ありなら選ばれた子だけ
+  if (custom) {
+    if (!(p.targets || []).includes(studentId)) return res.status(403).json({ error: 'この集金の対象ではありません' });
+  } else {
+    const att = (await pub.collection('attendances').doc(`${eventId}_${studentId}`).get()).data();
+    const picked = e.selection ? (await pub.collection('selections').doc(eventId).get()).data()?.studentIds || [] : null;
+    if (att?.status !== '参加' || (picked && !picked.includes(studentId))) return res.status(403).json({ error: 'この集金の対象ではありません（参加の子、選抜ありなら選ばれた子だけ）' });
+  }
 
   const done = (await pub.collection('paymentStatuses').doc(`${eventId}_${studentId}`).get()).data();
   if (done?.isConfirmed) return res.status(409).json({ error: 'もう確認済みです' });
@@ -53,7 +63,7 @@ export default async function handler(req, res) {
     'line_items[0][quantity]': '1',
     'line_items[0][price_data][currency]': 'jpy',
     'line_items[0][price_data][unit_amount]': String(Math.round(p.amount)),
-    'line_items[0][price_data][product_data][name]': `${dateLabel(e.date)} ${e.title} ${p.description || '集金'}`,
+    'line_items[0][price_data][product_data][name]': custom ? p.title || '集金' : `${dateLabel(e.date)} ${e.title} ${p.description || '集金'}`,
     'line_items[0][price_data][product_data][description]': `${kid?.childName || ''}さんの分`,
     'metadata[eventId]': eventId,
     'metadata[studentId]': studentId,
