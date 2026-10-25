@@ -66,7 +66,9 @@ export default function Analytics({ ctx }) {
     const targets = (s.targets || []).filter((sid) => data.students.some((x) => x.id === sid));
     const answered = targets.map((sid) => answeredAt(s, sid)).filter(Boolean);
     const event = data.events.find((e) => e.id === s.eventId);
-    return { s, opened, targets, answered, event, took: median(answered.map((t) => new Date(t) - new Date(s.at))) };
+    // 家族が少ないうちは誰が開いたかも見る（管理者だけの画面）
+    const names = [...(openedBy[s.sid] || [])].map((sid) => data.students.find((x) => x.id === sid)?.childName).filter(Boolean);
+    return { s, opened, names, targets, answered, event, took: median(answered.map((t) => new Date(t) - new Date(s.at))) };
   });
 
   // 種類ごとの平均（直近60日）
@@ -97,10 +99,13 @@ export default function Analytics({ ctx }) {
         </motion.ul>
       </section>
 
-      <h3 className="text-xs text-gray-500 px-1">送ったお知らせ</h3>
+      <div className="flex items-center px-1">
+        <h3 className="text-xs text-gray-500 flex-1">送ったお知らせ</h3>
+        <Press onClick={() => { setLog(null); setTries((n) => n + 1); }} className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 bg-white rounded-lg px-2.5 py-1"><RotateCw className="w-3.5 h-3.5" />最新にする</Press>
+      </div>
       {!rows.length && <p className="text-sm text-gray-400 text-center py-6">まだ送ったお知らせがありません</p>}
       <motion.ul className="space-y-2" variants={listVariants} initial="hidden" animate="show">
-        {rows.map(({ s, opened, targets, answered, event, took }) => (
+        {rows.map(({ s, opened, names, targets, answered, event, took }) => (
           <motion.li key={s.sid} variants={itemVariants} className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 text-sm">
             <div className="flex items-baseline gap-2">
               <span className="text-[11px] font-bold bg-emerald-50 text-emerald-700 rounded-full px-2 py-0.5 shrink-0">{KINDS[s.kind]}</span>
@@ -109,7 +114,7 @@ export default function Analytics({ ctx }) {
             </div>
             {event && <p className="font-bold mt-1 truncate">{dateLabel(event.date)} {event.title}</p>}
             <dl className="grid grid-cols-[6.5em_1fr] gap-y-1 mt-2 text-[13px] tabular-nums">
-              <dt className="text-gray-500">開いた家族</dt><dd>{opened} / {families.size}（{pct(opened, families.size)}%）</dd>
+              <dt className="text-gray-500">開いた家族</dt><dd>{opened} / {families.size}（{pct(opened, families.size)}%）{names.length > 0 && <span className="block text-xs text-gray-500">{names.join('、')}</span>}</dd>
               {GOAL[s.kind] && <><dt className="text-gray-500">回答した</dt><dd>{answered.length} / {targets.length}（{pct(answered.length, targets.length)}%）<span className="text-gray-500 text-xs ml-1">{GOAL[s.kind]}</span></dd></>}
               {took !== null && <><dt className="text-gray-500">回答まで</dt><dd>中央値 {hours(took)}</dd></>}
             </dl>
