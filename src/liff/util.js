@@ -53,6 +53,10 @@ export const groupLabel = (s) => {
   return `${parseDate(s).getMonth() + 1}月`;
 };
 
+// 名簿の追加と、名前・背番号の修正はコーチと管理者だけ（2026-10-25 ユーザー決定）。
+// コーチは管理タブで人ごとに付ける役割（子どもとは関係なく、LINEのアカウントごと。コーチでない母親が登録しても付けなければよい）
+export const canManageRoster = (has) => has('coach') || has('admin');
+
 // 締切を変えられるのは役割を持つコーチ（配車担当・案内係）と管理者
 export const canEditDeadline = (has) => has('ride') || has('guide') || has('admin');
 

@@ -41,9 +41,9 @@ const state = {
   studentPhotos: [],
   members: [
     { id: 'u_parent', displayName: '保護者A', roles: [], studentId: null },
-    { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['ride'], studentId: 's2' },
+    { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['coach', 'ride'], studentId: 's2' },
     { id: 'u_yamato', displayName: '大和', roles: ['pay'], studentId: 's3' },
-    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['guide', 'select'], studentId: 's5' },
+    { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['coach', 'guide', 'select'], studentId: 's5' },
     { id: 'u_admin', displayName: '髙村', roles: ['admin'], studentId: 's4' },
   ],
 };

@@ -5,11 +5,12 @@ import { entryFlex } from '../util.js';
 import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 
 export const ROLES = [
+  { id: 'coach', name: 'コーチ', desc: '名簿に子どもを追加し、名前・背番号を直す' },
   { id: 'ride', name: '配車担当', desc: '配車の希望を見て割り振り、グループに共有する' },
   { id: 'select', name: '選抜担当', desc: '選抜ありの試合で、出る子を選んで確定する' },
   { id: 'pay', name: '会計', desc: '家族ごとの支払い状況を見て、確認済みにする' },
   { id: 'guide', name: '案内係', desc: '新しく入った人に案内を送る' },
-  { id: 'admin', name: '管理者', desc: '役割の付け替え、名簿の修正' },
+  { id: 'admin', name: '管理者', desc: '役割の付け替え、名簿の修正、分析' },
 ];
 
 export default function Roles({ ctx }) {
@@ -34,7 +35,7 @@ export default function Roles({ ctx }) {
       <ReminderDay ctx={ctx} />
       <WeekendMode ctx={ctx} />
       <EntryCard ctx={ctx} />
-      <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿だけ使えます。</p>
+      <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿を見ることだけできます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
         {editing && <RolePicker ctx={ctx} role={editing} onClose={() => setEditing(null)} />}
       </Sheet>

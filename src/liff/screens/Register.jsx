@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Camera, ChevronLeft, Search, UserPlus } from 'lucide-react';
 import { Press, Avatar, useShake, useToast, spring } from '../ui.jsx';
-import { compressPhoto, jersey } from '../util.js';
+import { compressPhoto, jersey, canManageRoster } from '../util.js';
 
 const GRADES = ['年少', '年中', '年長', '1年', '2年', '3年', '4年', '5年', '6年'];
 
@@ -59,7 +59,9 @@ function PickKid({ ctx, onPick, onNew }) {
         ))}
       </motion.div>
       {!list.length && <p className="text-center text-sm text-gray-400 py-8">見つかりません</p>}
-      <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-gray-600 border border-dashed border-gray-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
+      {canManageRoster(ctx.has)
+        ? <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-gray-600 border border-dashed border-gray-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
+        : <p className="mt-5 text-xs text-gray-500 text-center">名簿にお子さんがいないときは、コーチに伝えてください。名簿に入ったら、ここから選べます。</p>}
     </div>
   );
 }
