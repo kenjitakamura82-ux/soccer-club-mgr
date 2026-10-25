@@ -18,7 +18,7 @@ const payLabel = (p) => (p.kind === 'custom' ? '個別の集金' : `${dateLabel(
 const CARD_PAY = import.meta.env.VITE_CARD_PAY === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
 const CARD = 'カード・Apple Pay';
 
-const statusOf = (ps) => !ps || ps.status !== 'transferred' ? 'todo' : ps.isConfirmed ? 'done' : 'wait';
+const statusOf = (ps) => ps?.status === 'refunded' ? 'refunded' : !ps || ps.status !== 'transferred' ? 'todo' : ps.isConfirmed ? 'done' : 'wait';
 const yen = (n) => `¥${Number(n).toLocaleString()}`;
 
 export function MyPay({ ctx }) {
@@ -55,6 +55,7 @@ export function MyPay({ ctx }) {
                     </div>
                   )}
                   {st === 'wait' && <span className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 rounded-full px-4 py-2 font-bold text-sm"><Clock className="w-4 h-4" />会計の確認待ち</span>}
+                  {st === 'refunded' && <span className="inline-flex items-center gap-2 bg-gray-100 text-gray-600 rounded-full px-4 py-2 font-bold text-sm">返金しました（カードに戻るまで5〜10日ほど）</span>}
                   {st === 'done' && <span className="inline-flex items-center gap-2 text-emerald-700 font-black"><DrawCheck size={36} />確認済み{ps?.method === 'card' && <span className="text-xs font-bold text-gray-500">（{CARD}）</span>}</span>}
                 </motion.div>
               </AnimatePresence>
@@ -78,9 +79,13 @@ export function PayAdmin({ ctx }) {
   const { data, students, photos, actions, myName } = ctx;
   const toast = useToast();
   const [editing, setEditing] = useState(null);
+  const [refunding, setRefunding] = useState(null);
   const list = activePayments(data);
   return (
     <div className="p-3 space-y-4">
+      <Sheet open={!!refunding} onClose={() => setRefunding(null)} title="返金する">
+        {refunding && <RefundConfirm ctx={ctx} target={refunding} onDone={() => setRefunding(null)} />}
+      </Sheet>
       <Press onClick={() => setEditing({})} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold"><Plus className="w-4 h-4" />集金を設定する</Press>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing?.payment ? '集金の設定を直す' : '集金を設定する'}>
         {editing && <PayForm key={editing.payment?.id || 'new'} ctx={ctx} initial={editing} onDone={() => setEditing(null)} />}
@@ -91,8 +96,9 @@ export function PayAdmin({ ctx }) {
         const statuses = data.paymentStatuses.filter((x) => x.eventId === key);
         // 払う対象の家族と、対象外でも支払いの記録がある家族
         const sids = [...new Set([...payTargets(p, data), ...statuses.map((s) => s.studentId)])];
+        const order = ['todo', 'wait', 'done', 'refunded'];
         const rows = sids.map((sid) => ({ sid, s: students[sid], ps: statuses.find((x) => x.studentId === sid) }))
-          .sort((a, b) => ['todo', 'wait', 'done'].indexOf(statusOf(a.ps)) - ['todo', 'wait', 'done'].indexOf(statusOf(b.ps)) || jersey(a.s) - jersey(b.s));
+          .sort((a, b) => order.indexOf(statusOf(a.ps)) - order.indexOf(statusOf(b.ps)) || jersey(a.s) - jersey(b.s));
         const count = (k) => rows.filter((r) => statusOf(r.ps) === k).length;
         const unpaid = rows.filter((r) => statusOf(r.ps) === 'todo').map((r) => r.s?.childName).filter(Boolean);
         const cards = statuses.filter((s) => s.method === 'card' && s.isConfirmed);
@@ -121,7 +127,8 @@ export function PayAdmin({ ctx }) {
                     <Avatar student={s} photo={photos[sid]} size={30} />
                     <span className="flex-1 truncate">{s?.childName || ps?.responderName || '不明'}の家族</span>
                     {st === 'wait' && <Press onClick={async () => { await actions.confirmTransfer(ps.id, myName); toast('確認済みにしました'); }} className="bg-emerald-600 text-white rounded-lg px-2.5 py-1 text-xs font-bold">入金を確認した</Press>}
-                    <span className={`text-[11px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap ${st === 'done' ? 'bg-emerald-50 text-emerald-700' : st === 'wait' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{st === 'done' ? (ps?.method === 'card' ? `${CARD}で支払い済み` : '確認済み') : st === 'wait' ? 'ことら・確認待ち' : 'まだ'}</span>
+                    {st === 'done' && ps?.method === 'card' && ps.stripeSessionId && <button onClick={() => setRefunding({ ps, name: s?.childName, amount: ps.amount || p.amount })} className="text-[11px] text-gray-500 underline">返金</button>}
+                    <span className={`text-[11px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap ${st === 'done' ? 'bg-emerald-50 text-emerald-700' : st === 'wait' ? 'bg-blue-50 text-blue-700' : st === 'refunded' ? 'bg-gray-100 text-gray-600' : 'bg-amber-50 text-amber-700'}`}>{st === 'done' ? (ps?.method === 'card' ? `${CARD}で支払い済み` : '確認済み') : st === 'wait' ? 'ことら・確認待ち' : st === 'refunded' ? '返金済み' : 'まだ'}</span>
                   </li>
                 );
               })}
@@ -130,13 +137,40 @@ export function PayAdmin({ ctx }) {
               <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-600 tabular-nums">
                 <p className="font-bold text-gray-700">{CARD}で集まった分（{cards.length}件）</p>
                 <p>合計 {yen(cardSum)} ・ 手数料の目安 {yen(cardFee)}（{(CARD_FEE_RATE * 100).toFixed(1)}%） ・ 口座に入る目安 {yen(cardSum - cardFee)}</p>
-                <p className="text-gray-400 mt-0.5">正確な金額は Stripe の管理画面の「入金」で確かめてください</p>
+                <p className="text-gray-400 mt-0.5">正確な金額は Stripe の管理画面の「入金」で確かめてください。返金しても手数料は戻りません（チームの負担）</p>
               </div>
             )}
             <p className="text-[11px] text-gray-400 mt-2">ことら送金の入金を銀行アプリで確かめてから押してください。{CARD}で払われた分は自動で確認済みになります</p>
           </section>
         );
       })}
+    </div>
+  );
+}
+
+// 返金の確認。全額をカードに戻す。元の支払いの手数料は戻らずチームの負担になる（Stripe の仕様。2026-10-25 ユーザー確認）
+function RefundConfirm({ ctx, target, onDone }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const fee = Math.round((target.amount || 0) * CARD_FEE_RATE);
+  const go = async () => {
+    setBusy(true);
+    try {
+      await ctx.actions.refundCardPay(target.ps.id);
+      toast('返金しました', 'カードに戻るまで5〜10日ほどかかります');
+      onDone();
+    } catch (e) { toast('返金できませんでした', e.message); setBusy(false); }
+  };
+  return (
+    <div className="space-y-3 text-sm">
+      <p><b>{target.name}の家族</b>に <b className="tabular-nums">{yen(target.amount)}</b> を返金します。</p>
+      <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
+        <li>全額が、払ったカード・Apple Pay に戻ります（反映まで5〜10日ほど）</li>
+        <li>元の支払いの手数料（約{yen(fee)}）は戻りません。チームの負担になります</li>
+        <li>返金は取り消せません</li>
+      </ul>
+      <Press onClick={go} disabled={busy} className="w-full bg-red-600 text-white rounded-xl py-3 font-bold disabled:opacity-60">{busy ? '返金しています…' : `${yen(target.amount)} を返金する`}</Press>
+      <button onClick={onDone} className="w-full text-sm text-gray-500 py-2">やめる</button>
     </div>
   );
 }

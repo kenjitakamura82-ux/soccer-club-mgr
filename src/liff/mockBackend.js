@@ -117,8 +117,9 @@ export const actions = {
   },
   savePayment: async (eventId, { description, amount, isActive }) => upsert('payments', eventId, { eventId, description, amount: amount ? Number(amount) : null, isActive }),
   // 見本：Stripe には行かず、少しして確認済みになる
-  startCardPay: async (eventId) => { const sid = state.members.find((m) => m.id === meId)?.studentId; setTimeout(() => upsert('paymentStatuses', `${eventId}_${sid}`, { eventId, studentId: sid, status: 'transferred', method: 'card', isConfirmed: true, confirmedBy: 'カード決済' }), 800); },
+  startCardPay: async (eventId) => { const sid = state.members.find((m) => m.id === meId)?.studentId; setTimeout(() => upsert('paymentStatuses', `${eventId}_${sid}`, { eventId, studentId: sid, status: 'transferred', method: 'card', isConfirmed: true, confirmedBy: 'カード決済', stripeSessionId: 'cs_test_mock' }), 800); },
   saveCustomPayment: async (id, fields) => { const pid = id || `custom-${Math.random().toString(36).slice(2, 8)}`; upsert('payments', pid, { ...fields, kind: 'custom', ...(id ? {} : { createdAt: new Date().toISOString() }) }); return pid; },
+  refundCardPay: async (psId) => { await new Promise((r) => setTimeout(r, 500)); upsert('paymentStatuses', psId, { status: 'refunded', isConfirmed: false, refundedAt: new Date().toISOString() }); return { ok: true }; },
   reportTransfer: async (eventId, studentId) => upsert('paymentStatuses', `${eventId}_${studentId}`, { eventId, studentId, status: 'transferred' }),
   confirmTransfer: async (psId, by) => upsert('paymentStatuses', psId, { isConfirmed: true, confirmedBy: by }),
   saveSelection: async (eventId, studentIds, by) => upsert('selections', eventId, { eventId, studentIds, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),

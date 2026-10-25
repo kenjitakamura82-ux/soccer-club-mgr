@@ -172,6 +172,18 @@ export const actions = {
     return pid;
   },
 
+  // カード・Apple Pay で払われた集金の返金（会計・管理者だけ。サーバーが Stripe に頼む）
+  async refundCardPay(paymentStatusId) {
+    const res = await fetch('/api/pay-refund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` },
+      body: JSON.stringify({ paymentStatusId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `返金できませんでした（${res.status}）`);
+    return data;
+  },
+
   reportTransfer: (eventId, studentId, name) =>
     setDoc(pubDoc('paymentStatuses', `${eventId}_${studentId}`), { eventId, studentId, responderName: name, status: 'transferred', transferredAt: now(), updatedAt: now() }, { merge: true }),
 

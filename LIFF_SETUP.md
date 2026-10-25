@@ -97,6 +97,8 @@ LINEの中で開く画面（`liff.html`）を動かすための手順。パイ�
 - 環境変数（soccer-club-mgr）：`STRIPE_SECRET_KEY`（sk_test_… / 本番は sk_live_…）、`STRIPE_WEBHOOK_SECRET`（whsec_…）、`VITE_CARD_PAY=on`（ボタンを出す。入れたあと再デプロイが要る）
 - Stripe の webhook：送り先 `https://soccer-club-mgr.vercel.app/api/stripe-webhook`、イベント `checkout.session.completed`
 - テスト用カード：4242 4242 4242 4242（有効期限は未来の日付、CVCは何でも）
+- 返金：会計・管理者が集金確認の「返金」から（`api/pay-refund.js`。全額）。元の支払いの Stripe 手数料は戻らずチームの負担。返金後は `paymentStatuses.status: 'refunded'`
+- 手数料は保護者に転嫁せず、集金額に手数料分を含める（支払い方法で金額を変えるのはカード会社の規約で禁止）。集金の設定に「手数料込みの金額」の目安（10円単位で切り上げ）
 
 ## 分析タブ（管理者だけ）
 
