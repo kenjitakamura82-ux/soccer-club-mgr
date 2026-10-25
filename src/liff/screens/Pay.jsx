@@ -152,7 +152,10 @@ function PayForm({ ctx, initial, onDone }) {
   const events = ctx.data.events.filter((e) => e.date && e.date >= from && e.date <= to && !isCanceled(e) && e.type !== '練習').sort((a, b) => a.date.localeCompare(b.date));
   const [eventId, setEventId] = useState(initial.event?.id || '');
   const [title, setTitle] = useState((editingPay?.kind === 'custom' ? editingPay.title : editingPay?.description) || '');
-  const [amount, setAmount] = useState(editingPay?.amount ? String(editingPay.amount) : '');
+  const [amount, setAmountRaw] = useState(editingPay?.amount ? String(editingPay.amount) : '');
+  // 手数料込みにする前の金額。込みにしたあとは、もう一度は計算しない（押すたびに手数料が重ならないように）。金額を手で変えたら解除
+  const [feeBase, setFeeBase] = useState(null);
+  const setAmount = (v) => { setAmountRaw(v); setFeeBase(null); };
   const [targets, setTargets] = useState(() => new Set(editingPay?.targets || []));
   const [err, setErr] = useState('');
   const [saved, setSaved] = useState(null);
@@ -212,7 +215,7 @@ function PayForm({ ctx, initial, onDone }) {
         ) : <p className="text-xs text-gray-500">入会費やユニフォーム代など、予定にひも付かない集金です。払う子を選んでください。</p>}
         <label className="block"><span className="text-xs text-gray-500">何の集金？</span><input className={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={kind === 'event' ? '例：大会の参加費、グラウンド代' : '例：入会費、ユニフォーム代'} /></label>
         <label className="block"><span className="text-xs text-gray-500">1人あたりの金額（円）</span><input className={input} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="例：500" /></label>
-        <FeeHelper amount={amount} onApply={(v) => setAmount(String(v))} />
+        <FeeHelper amount={amount} base={feeBase} onApply={(v) => { setAmountRaw(String(v)); setFeeBase(Number(amount)); }} onUndo={() => { setAmountRaw(String(feeBase)); setFeeBase(null); }} />
         {kind === 'custom' && <KidPicker ctx={ctx} value={targets} onChange={setTargets} />}
       </div>
       {kind === 'event' && event && already(event.id) && !initial.event && <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">この予定にはもう集金があります。保存すると内容を書き換えます。</p>}
@@ -226,16 +229,27 @@ function PayForm({ ctx, initial, onDone }) {
 
 // カードの手数料分を、集金額そのものに含める手伝い。支払い方法で金額を変える（カードだけ上乗せする）のはカード会社の規約で禁止されているので、
 // ことら送金の人も同じ金額になる（余った分はチームの収入）
-function FeeHelper({ amount, onApply }) {
+function FeeHelper({ amount, base, onApply, onUndo }) {
   const n = Number(amount);
   if (!(n > 0)) return null;
+  // 込みにしたあと：元の金額と、元に戻すボタンだけ出す（もう一度は押せない）
+  if (base) return (
+    <div className="flex items-start gap-2 bg-emerald-50 rounded-xl px-3 py-2 text-xs text-emerald-900">
+      <Check className="w-4 h-4 mt-0.5 shrink-0" />
+      <div className="flex-1">
+        <p>手数料込みの金額にしました（元の金額 <span className="tabular-nums">{yen(base)}</span>）</p>
+        <p className="text-emerald-800/70">手数料{(CARD_FEE_RATE * 100).toFixed(1)}%分を足して、10円単位で切り上げています</p>
+      </div>
+      <button type="button" onClick={onUndo} className="shrink-0 border border-emerald-200 bg-white rounded-lg px-2 py-1 font-bold">元に戻す</button>
+    </div>
+  );
   const v = withCardFee(n);
   if (v === n) return null;
   return (
     <div className="flex items-start gap-2 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-600">
       <Calculator className="w-4 h-4 mt-0.5 shrink-0" />
       <div className="flex-1">
-        <p>{CARD}の手数料（{(CARD_FEE_RATE * 100).toFixed(1)}%）を含めるなら <b className="tabular-nums">{yen(v)}</b></p>
+        <p>{CARD}の手数料（{(CARD_FEE_RATE * 100).toFixed(1)}%）を含めるなら <b className="tabular-nums">{yen(v)}</b>（10円単位で切り上げ）</p>
         <p className="text-gray-400">カードだけ金額を上げることはできないので、ことら送金の人も同じ金額になります</p>
       </div>
       <button type="button" onClick={() => onApply(v)} className="shrink-0 border border-gray-300 bg-white rounded-lg px-2 py-1 font-bold text-gray-700">この金額にする</button>
