@@ -21,20 +21,20 @@ function Hero({ label, title, sub }) {
 }
 
 // 小林コーチが新規加入の家族に送っている案内の中身（TeamHubの手順は不要になったので外した）
-export function Welcome({ onVenue, onDone }) {
+export function Welcome({ onVenue, onDone, doneLabel = '予定を見る' }) {
   return (
     <div className="pb-10">
       <Hero label="まちサカ" title="新しく入ったご家族へ" sub="ようこそ！はじめに確認してほしいことをまとめました。" />
       <motion.div className="p-3 space-y-3" variants={listVariants} initial="hidden" animate="show">
         <Section icon={Backpack} title="用意するもの"><ul className="list-disc pl-5"><li>サッカーソックス</li><li>すね当て</li><li>サッカーシューズ</li><li>ウエア上下</li></ul></Section>
         <Section icon={Shirt} title="試合に出るとき"><ul className="list-disc pl-5 space-y-1"><li>ユニフォームの上着を購入します（5,700円・税込）</li><li>パンツとソックスは市販のもので、白を着ます。1組は白を用意してください</li></ul></Section>
-        <Section icon={Hash} title="背番号">別途調整します。決まったら、画面右上の「〇〇の家族」から入れてください。</Section>
+        <Section icon={Hash} title="背番号">ユニフォームを買うときに、空いている番号から選べます（早い者勝ち）。変えたいときはコーチに伝えてください。</Section>
         <Section icon={CalendarCheck} title="出欠">このアプリの予定画面で回答します。なるべく早めの回答にご協力ください。あとで変えるときの連絡は要りません。</Section>
         <Section icon={Camera} title="顔写真">お子さんの顔が分かる写真を登録してください。みんなが顔と名前を早く覚えられるように。</Section>
       </motion.div>
       <div className="px-3 space-y-2">
         <Press onClick={onVenue} className="w-full flex items-center justify-center gap-2 border-2 border-emerald-600 text-emerald-700 rounded-xl py-3 font-bold bg-white"><Map className="w-4 h-4" />練習場の使い方を見る</Press>
-        <Press onClick={onDone} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">予定を見る</Press>
+        <Press onClick={onDone} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">{doneLabel}</Press>
       </div>
     </div>
   );

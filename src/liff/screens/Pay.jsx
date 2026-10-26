@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Clock, Wallet, Plus, Send, Pencil, CreditCard, Search, Check, Calculator } from 'lucide-react';
 import { Press, Avatar, DrawCheck, Sheet, Segmented, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
+import { OnboardingSettings } from './Onboarding.jsx';
 import { dateLabel, jersey, isCanceled, todayJst, addDays, payFlex, payTargets, paymentEvent, withCardFee, CARD_FEE_RATE, feeBreakdown, STRIPE_FEE_NOTE } from '../util.js';
 
 // 有効な集金。予定の集金（payments/{予定のID}）と、個別の集金（kind: 'custom'。入会費・ユニフォーム代など、予定にひも付かない）
@@ -150,6 +151,7 @@ export function PayAdmin({ ctx }) {
           </section>
         );
       })}
+      <OnboardingSettings ctx={ctx} />
     </div>
   );
 }

@@ -44,6 +44,23 @@ export const withCardFee = (n) => Math.ceil(n / (1 - CARD_FEE_RATE) / 10) * 10;
 export const feeBreakdown = (p) => (p?.baseAmount > 0 && p.amount > p.baseAmount ? { base: p.baseAmount, fee: p.amount - p.baseAmount } : null);
 // 保護者が金額を見る場所すべてに出す説明（2026-10-26 ユーザー決定：Stripe の手数料がかかることを保護者にちゃんと伝える）
 export const STRIPE_FEE_NOTE = '決済サービス「Stripe（ストライプ）」の手数料（3.6%）を含んだ金額です。お支払い方法によらず同じ金額です。';
+// 入会の設定（settings/onboarding。会計・案内係・管理者が変える）。無ければこの値（2026-10-26 時点：年会費1万円、ユニフォームの上着5,700円・税込）
+export const ONBOARDING_DEFAULTS = { annualFee: 10000, uniformPrice: 5700, sizes: ['120', '130', '140', '150', '160', 'S', 'M', 'L', 'XL'], feeIncluded: true, inviteUrl: '' };
+export const onboardingSettings = (data) => ({ ...ONBOARDING_DEFAULTS, ...(data.onboardingSettings || {}) });
+// 入会の集金（年会費＋ユニフォーム代をまとめた個別の集金）。子ども1人に1つ
+export const joinPaymentId = (sid) => `join-${sid}`;
+export function joinAmounts(uniform, set) {
+  const items = [{ label: '年会費', amount: set.annualFee }, ...(uniform?.buy ? [{ label: `ユニフォーム（${uniform.size}・背番号${uniform.number}）`, amount: set.uniformPrice }] : [])];
+  const base = items.reduce((n, it) => n + it.amount, 0);
+  return { title: uniform?.buy ? '入会（年会費・ユニフォーム）' : '入会（年会費）', items, amount: set.feeIncluded ? withCardFee(base) : base, baseAmount: set.feeIncluded ? base : null };
+}
+// はじめての準備の進み具合（members/{uid}.onboarding）。支払いは、入会の集金に「送金した」か「カードで払った」記録があれば済み
+export function onboardingSteps(member, data) {
+  const o = member?.onboarding || {};
+  const sid = member?.studentId;
+  const ps = sid && data.paymentStatuses?.find((x) => x.eventId === joinPaymentId(sid) && x.studentId === sid);
+  return { line: !!o.line, kid: !!sid, guide: !!o.guide, uniform: !!o.uniform, pay: ps?.status === 'transferred' };
+}
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {
@@ -324,19 +341,23 @@ export function nudgeFlex(event, what, liffUrl) {
   };
 }
 
+// 新しく入った家族への案内（案内係が1対1で送る）。押すと「はじめての準備」（?onboarding=1）が開く（2026-10-26 ユーザー決定）
 export function inviteFlex(liffUrl) {
+  const url = `${liffUrl}${liffUrl.includes('?') ? '&' : '?'}onboarding=1`;
+  const step = (t) => ({ type: 'text', text: t, size: 'sm', color: '#333333' });
   return {
     type: 'flex',
-    altText: 'まちサカへようこそ',
+    altText: 'ようこそ、まちサカへ',
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', action: { type: 'uri', label: '開く', uri: url }, contents: [
         { type: 'text', text: 'まちサカ', size: 'xs', color: '#059669', weight: 'bold' },
-        { type: 'text', text: '新しく入ったご家族へ', weight: 'bold', size: 'lg' },
-        { type: 'text', text: 'ようこそ！下のボタンから、お子さんの登録と出欠の回答ができます。持ち物や練習場の使い方も載っています。', size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: 'ようこそ、まちサカへ', weight: 'bold', size: 'lg' },
+        { type: 'text', text: 'はじめに5つの準備があります。下のボタンから順番に進めてください（10分ほど）。', size: 'sm', color: '#555555', wrap: true },
+        { type: 'box', layout: 'vertical', spacing: 'xs', margin: 'md', contents: [step('1. 全体LINEに参加'), step('2. お子さんの登録'), step('3. 予定の見かた'), step('4. ユニフォーム・背番号'), step('5. 年会費などの支払い')] },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
-        { type: 'button', style: 'primary', color: '#059669', action: { type: 'uri', label: '登録してはじめる', uri: liffUrl } },
+        { type: 'button', style: 'primary', color: '#059669', action: { type: 'uri', label: '準備をはじめる', uri: url } },
       ] },
     },
   };

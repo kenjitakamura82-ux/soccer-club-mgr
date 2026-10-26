@@ -19,17 +19,18 @@ service cloud.firestore {
       allow read, write: if lineMember();
     }
 
-    // メンバーと役割。役割を変えられるのは管理者だけ。本人は家族のひも付けだけ変えられる
+    // メンバーと役割。役割を変えられるのは管理者だけ。本人は家族のひも付けと、はじめての準備の進み具合だけ変えられる
     match /artifacts/{appId}/members/{uid} {
       allow read: if lineMember();
       allow update: if hasRole('admin')
-        || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'updatedAt']));
+        || (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentId', 'onboarding', 'updatedAt']));
     }
 
     // 設定（週末リマインドの曜日など）。読むのはメンバー、変えるのは管理者だけ
     match /artifacts/{appId}/settings/{docId} {
       allow read: if lineMember();
-      allow write: if hasRole('admin');
+      // 入会の設定（年会費・ユニフォーム代・全体LINEの招待リンク）は会計と案内係も変えられる
+      allow write: if hasRole('admin') || (docId == 'onboarding' && (hasRole('pay') || hasRole('guide')));
     }
 
     // 練習場の案内の画像など（スクリプトから入れる。読むのはメンバーだけ）

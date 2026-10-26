@@ -38,12 +38,16 @@ const state = {
   ridePlans: [],
   selections: [],
   settings: {},
+  onboardingSettings: {},
+  jerseyNumbers: {},
   studentPhotos: [],
   members: [
     { id: 'u_parent', displayName: '保護者A', roles: [], studentId: null },
     { id: 'u_kawaguchi', displayName: '川口コーチ', roles: ['coach', 'ride'], studentId: 's2' },
     { id: 'u_yamato', displayName: '大和', roles: ['pay'], studentId: 's3' },
     { id: 'u_kobayashi', displayName: '小林コーチ', roles: ['coach', 'guide', 'select'], studentId: 's5' },
+    { id: 'u_new', displayName: '新しい保護者', roles: [], studentId: null },
+    { id: 'u_joining', displayName: '山田', roles: [], studentId: null, onboarding: { started: true, at: '2026-10-25T09:00:00Z', line: true } },
     { id: 'u_admin', displayName: '髙村', roles: ['admin'], studentId: 's4' },
   ],
 };
@@ -111,6 +115,16 @@ export const actions = {
     return id;
   },
   linkKid: async (studentId) => upsert('members', meId, { studentId }),
+  saveOnboarding: async (patch) => { const m = state.members.find((x) => x.id === meId); upsert('members', meId, { onboarding: { ...(m.onboarding || {}), ...patch } }); },
+  saveOnboardingSettings: async (fields) => { state.onboardingSettings = { ...state.onboardingSettings, ...fields }; setTimeout(emit, 150); },
+  claimJersey: async (studentId, n) => {
+    const holder = state.jerseyNumbers[n];
+    if (holder && holder !== studentId && String(state.students.find((s) => s.id === holder)?.jerseyNumber) === String(n)) throw new Error('ほかの子が先に選びました');
+    if (state.students.some((s) => s.id !== studentId && String(s.jerseyNumber) === String(n))) throw new Error('ほかの子が使っています');
+    state.jerseyNumbers[n] = studentId;
+    upsert('students', studentId, { jerseyNumber: String(n) });
+  },
+  saveJoinPayment: async (studentId, { title, items, amount, baseAmount }) => upsert('payments', `join-${studentId}`, { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true }),
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     upsert('students', studentId, { jerseyNumber: jerseyNumber || '', ...(childName ? { childName } : {}) });
     if (photo) upsert('studentPhotos', studentId, { dataUrl: photo });

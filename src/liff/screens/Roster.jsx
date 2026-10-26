@@ -4,6 +4,7 @@ import { Send, UserPlus } from 'lucide-react';
 import { Sheet, Press, Avatar, useShake, useToast, listVariants, itemVariants } from '../ui.jsx';
 import { jersey, inviteFlex, canManageRoster } from '../util.js';
 import { PhotoPicker, NewKid } from './Register.jsx';
+import { NewFamilies } from './Onboarding.jsx';
 
 export default function Roster({ ctx }) {
   const { data, photos, has, actions } = ctx;
@@ -25,6 +26,7 @@ export default function Roster({ ctx }) {
     <div className="p-3 space-y-3">
       {(guide || admin) && <Press onClick={invite} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-3 font-bold"><Send className="w-4 h-4" />新しく入った人に案内を送る</Press>}
       {manage && <Press onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl py-3 font-bold"><UserPlus className="w-4 h-4" />子どもを名簿に追加</Press>}
+      {(guide || admin || manage || has('pay')) && <NewFamilies ctx={ctx} />}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100">
         <h3 className="font-bold px-4 pt-3 pb-1 flex">子どもの名簿 <span className="ml-2 text-gray-400 font-normal">{kids.length}人</span>{manage && <span className="ml-auto text-xs text-gray-400 font-normal self-center">押すと直せる</span>}</h3>
         <motion.ul className="divide-y divide-gray-100" variants={listVariants} initial="hidden" animate="show">

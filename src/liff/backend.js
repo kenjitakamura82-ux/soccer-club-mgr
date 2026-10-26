@@ -1,8 +1,8 @@
 import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
-import { tagUrl, newSid, linkTag } from './util.js';
+import { tagUrl, newSid, linkTag, joinPaymentId } from './util.js';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 
 // src/App.jsx と同じプロジェクト・同じ appId。データは既存アプリと共有する
 const firebaseConfig = {
@@ -98,6 +98,7 @@ export function subscribe(onData) {
   ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
   listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
+  listen('onboardingSettings', doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), (s) => s.data() || {});
   listen('me', memberDoc(me.uid), (s) => { me = { ...me, ...s.data() }; return { uid: me.uid, ...me }; });
   return () => unsubs.forEach((u) => u());
 }
@@ -141,6 +142,29 @@ export const actions = {
   },
 
   linkKid: (studentId) => updateDoc(memberDoc(me.uid), { studentId, updatedAt: now() }),
+
+  // はじめての準備の進み具合（members/{uid}.onboarding）。本人だけ書ける（firestore.rules）
+  saveOnboarding: (patch) => updateDoc(memberDoc(me.uid), { onboarding: { ...(me.onboarding || {}), ...patch }, updatedAt: now() }),
+  // 入会の設定（会計・案内係・管理者）
+  saveOnboardingSettings: (fields) => setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), { ...fields, updatedAt: now() }, { merge: true }),
+  // 背番号を早い者勝ちで取る。番号ごとの印（jerseyNumbers/{番号}）をトランザクションで取り合い、先に取った子だけが通る。
+  // 印が残っていても、その子の背番号がもう変わっていれば（名簿で直したなど）取れる
+  async claimJersey(studentId, n) {
+    await runTransaction(db, async (tx) => {
+      const lockRef = pubDoc('jerseyNumbers', String(n));
+      const lock = await tx.get(lockRef);
+      const holder = lock.exists() ? lock.data().studentId : null;
+      if (holder && holder !== studentId) {
+        const other = await tx.get(pubDoc('students', holder));
+        if (other.exists() && String(other.data().jerseyNumber) === String(n)) throw new Error('ほかの子が先に選びました。別の番号を選んでください');
+      }
+      tx.set(lockRef, { studentId, at: now() });
+      tx.set(pubDoc('students', studentId), { jerseyNumber: String(n), updatedAt: now() }, { merge: true });
+    });
+  },
+  // 入会の集金（年会費＋ユニフォーム代をまとめた個別の集金）。払う前なら、選び直しや金額の変更に合わせて作り直す
+  saveJoinPayment: (studentId, { title, items, amount, baseAmount }) =>
+    setDoc(pubDoc('payments', joinPaymentId(studentId)), { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true, setBy: me?.displayName || '', updatedAt: now() }, { merge: true }),
 
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     const patch = { jerseyNumber: jerseyNumber || '', updatedAt: now() };

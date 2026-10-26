@@ -7,6 +7,7 @@ import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
 import WeekendSend from './screens/WeekendSend.jsx';
 import Select from './screens/Select.jsx';
+import Onboarding from './screens/Onboarding.jsx';
 import Analytics from './screens/Analytics.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
@@ -102,6 +103,18 @@ function Main({ data, actions }) {
   });
   const [kidSheet, setKidSheet] = useState(false);
   const needsRegister = !me.studentId;
+
+  // はじめての準備：案内のカード（?onboarding=1）から開いた家族は、終わるまで開くたびにこの画面。「先に予定を見る」でその回だけ閉じられる
+  const fromInvite = (() => {
+    const q = new URLSearchParams(location.search);
+    return q.get('onboarding') === '1' || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('onboarding') === '1';
+  })();
+  const [later, setLater] = useState(false);
+  const ob = me.onboarding;
+  useEffect(() => {
+    if (fromInvite && !ob?.started) actions.saveOnboarding({ started: true, at: new Date().toISOString() }).catch((e) => console.error(e));
+  }, [fromInvite, ob?.started, actions]);
+  if ((fromInvite || ob?.started) && !ob?.done && !later) return <Shell><Onboarding ctx={ctx} onLater={() => setLater(true)} /></Shell>;
 
   if (needsRegister) return <Shell><Register ctx={ctx} onDone={() => setOverlay('welcome')} /></Shell>;
 
