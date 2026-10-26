@@ -27,9 +27,9 @@ export default function Home({ ctx, open }) {
   return (
     <div>
       <div className="grid grid-cols-3 gap-2 px-3 pt-3">
-        <Press onClick={() => open('howto')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><BookOpen className="w-4 h-4" />使い方</Press>
+        <Press onClick={() => open('howto')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><BookOpen className="w-4 h-4" />アプリの使い方</Press>
         <Press onClick={() => open('welcome')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Info className="w-4 h-4" />はじめての方へ</Press>
-        <Press onClick={() => open('venue')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Map className="w-4 h-4" />練習場の使い方</Press>
+        <Press onClick={() => open('venue')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Map className="w-4 h-4" />練習場のルール</Press>
       </div>
 
 
@@ -208,7 +208,7 @@ function EventDetail({ e, ctx, open, onEdit }) {
         {timeLabel(e) && <p className="flex gap-2"><Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />{timeLabel(e)}</p>}
         {e.location && (
           <p className="flex gap-2"><MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-            <span>{e.location}{isKashiwanohaEs(e) && <button onClick={() => open('venue')} className="ml-2 text-blue-600 underline text-xs">使い方</button>}</span>
+            <span>{e.location}{isKashiwanohaEs(e) && <button onClick={() => open('venue')} className="ml-2 text-blue-600 underline text-xs">ルール</button>}</span>
           </p>
         )}
         {e.memo && <p className="flex gap-2 whitespace-pre-wrap"><FileText className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" /><span className="min-w-0"><Linkify text={e.memo} ctx={ctx} /></span></p>}

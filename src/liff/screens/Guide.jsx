@@ -33,7 +33,7 @@ export function Welcome({ onVenue, onDone, doneLabel = '予定を見る' }) {
         <Section icon={Camera} title="顔写真">お子さんの顔が分かる写真を登録してください。みんなが顔と名前を早く覚えられるように。</Section>
       </motion.div>
       <div className="px-3 space-y-2">
-        <Press onClick={onVenue} className="w-full flex items-center justify-center gap-2 border-2 border-emerald-600 text-emerald-700 rounded-xl py-3 font-bold bg-white"><Map className="w-4 h-4" />練習場の使い方を見る</Press>
+        <Press onClick={onVenue} className="w-full flex items-center justify-center gap-2 border-2 border-emerald-600 text-emerald-700 rounded-xl py-3 font-bold bg-white"><Map className="w-4 h-4" />練習場のルールを見る</Press>
         <Press onClick={onDone} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">{doneLabel}</Press>
       </div>
     </div>
