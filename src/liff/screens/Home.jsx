@@ -89,7 +89,7 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
   const picked = !!myKid && !!sel?.studentIds.includes(myKid.id);
   const needWish = picked && !canceled && !data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
   const waiting = !!myKid && e.selection && !sel && status === '参加';
-  const third = needWish ? '出場メンバーに入りました ・ 配車の希望を入れてください' : waiting ? 'メンバー調整中' : unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
+  const third = needWish ? '出場メンバーに入りました ・ 配車の希望を入れてください' : waiting ? 'メンバー調整中' : unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (sel ? `出場メンバー ${sel.studentIds.length}人` : count ? `${count}人が参加予定` : '');
   return (
     <motion.li variants={rowVariants} onClick={onOpen}
       className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 cursor-pointer active:bg-gray-100 ${first ? 'rounded-t-2xl' : 'rounded-t'} ${last ? 'rounded-b-2xl' : 'rounded-b'}`}>
@@ -237,23 +237,33 @@ function EventDetail({ e, ctx, open, onEdit }) {
         </section>
       )}
 
-      {e.selection && !isCanceled(e) && <SelectionSection e={e} ctx={ctx} />}
+      {e.selection && <SelectionSection e={e} ctx={ctx} attending={attending} />}
 
       {/* 人数の限りがある試合は、出場メンバーの家族にだけ出す。メンバーは出欠の締切のあとに決まることがあるので、締切後も入力できる */}
       {myKid && status === '参加' && needsRide(e) && inRide(e, data, myKid.id) && (!isClosed(e) || e.selection) && <RideForm e={e} ctx={ctx} />}
 
-      <section>
-        <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1 mb-2"><Users className="w-4 h-4" />参加する子（{attending.length}人）</h4>
-        <div className="flex flex-wrap gap-3">
-          {attending.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
-          {!attending.length && <p className="text-gray-400 text-xs">まだいません</p>}
-        </div>
-      </section>
+      {/* 人数の限りがある試合は、出場メンバーの欄の中に出す（2つ並ぶと紛らわしい。2026-10-26 ユーザー指摘） */}
+      {!e.selection && (
+        <section>
+          <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1 mb-2"><Users className="w-4 h-4" />参加する子（{attending.length}人）</h4>
+          <div className="flex flex-wrap gap-3">
+            {attending.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
+            {!attending.length && <p className="text-gray-400 text-xs">まだいません</p>}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-function SelectionSection({ e, ctx }) {
+const Kids = ({ list, photos }) => (
+  <div className="flex flex-wrap gap-3">
+    {list.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
+  </div>
+);
+
+// 決まる前：「調整中」と、参加と答えた子（この中から決める）。決まったら：出場メンバーだけ
+function SelectionSection({ e, ctx, attending }) {
   const { data, students, photos, myKid } = ctx;
   const sel = selectionOf(data, e.id);
   const picked = (sel?.studentIds || []).map((id) => students[id]).filter(Boolean);
@@ -261,14 +271,16 @@ function SelectionSection({ e, ctx }) {
   const wished = mine && data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
   return (
     <section className="bg-gray-50 rounded-2xl p-3 space-y-2">
-      <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />出場メンバー{sel && `（${picked.length}人）`}</h4>
-      {!sel && <p className="text-gray-500 text-xs">出場登録できる人数に限りがあるため、コーチが出場メンバーを決めます。決まったらここに出ます。</p>}
-      {mine && !wished && <p className="text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-xs font-bold">{myKid.childName}さんが出場メンバーに入りました。下で配車の希望を入れてください。</p>}
-      {sel && (
-        <div className="flex flex-wrap gap-3">
-          {picked.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
+      <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />出場メンバー{sel ? `（${picked.length}人）` : isCanceled(e) ? '' : '（調整中）'}</h4>
+      {!sel && !isCanceled(e) && <p className="text-gray-500 text-xs">出場登録できる人数に限りがあるため、参加と答えた子の中からコーチが決めます。決まったらここに出ます。</p>}
+      {!sel && (
+        <div className="pt-1">
+          <p className="text-[11px] font-bold text-gray-400 mb-1.5">参加と答えた子（{attending.length}人）</p>
+          {attending.length ? <Kids list={attending} photos={photos} /> : <p className="text-gray-400 text-xs">まだいません</p>}
         </div>
       )}
+      {mine && !wished && <p className="text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-xs font-bold">{myKid.childName}さんが出場メンバーに入りました。下で配車の希望を入れてください。</p>}
+      {sel && <Kids list={picked} photos={photos} />}
     </section>
   );
 }
