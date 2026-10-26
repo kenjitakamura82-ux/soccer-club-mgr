@@ -64,6 +64,9 @@ export function onboardingSteps(member, data) {
 // ビブスの持ち帰り（2026-10-26 ユーザー決定）。色は管理タブで変えられる（settings/bibs）。無ければ今使っている3色
 export const BIB_DEFAULT_COLORS = [{ id: 'yellow', name: '黄色', hex: '#facc15' }, { id: 'pink', name: 'ピンク', hex: '#ec4899' }, { id: 'orange', name: 'オレンジ', hex: '#f97316' }];
 export const bibsSettings = (data) => ({ colors: BIB_DEFAULT_COLORS, askers: [], auto: true, ...(data.bibsSettings || {}) });
+// 「その他」：色が分からない残りのビブス（コーチが持っていることがある。2026-10-26 ユーザー依頼）。設定の色のあとにいつも出す。消せない
+export const BIB_OTHER = { id: 'other', name: 'その他', hex: '#6b7280', other: true };
+export const bibColors = (data) => [...bibsSettings(data).colors.filter((c) => c.id !== BIB_OTHER.id), BIB_OTHER];
 // 明るい色（黄色など）は黒い文字にする
 export const isLightHex = (hex) => { const n = parseInt(String(hex).slice(1), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 > 170; };
 // 今の練習：今日までで一番新しい練習。次の練習の日になれば自然にそちらへ移る（＝持ち帰りの表示がリセットされる）
@@ -363,7 +366,7 @@ export function bibsFlex(event, colors, liffUrl) {
       body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [
         { type: 'text', text: 'ビブスの持ち帰り', size: 'xs', color: '#059669', weight: 'bold' },
         { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
-        { type: 'text', text: '持ち帰った方は、色を押してください（いくつでも）', size: 'sm', color: '#555555', wrap: true },
+        { type: 'text', text: '持ち帰った方は、色を押してください（いくつでも）。色が分からない残りは「その他」', size: 'sm', color: '#555555', wrap: true },
         ...rows.map((r) => ({ type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm', contents: r.map((c) => ({
           type: 'button', height: 'sm', style: isLightHex(c.hex) ? 'secondary' : 'primary', color: c.hex,
           action: { type: 'uri', label: c.name.slice(0, 20), uri: link(`bib=${encodeURIComponent(c.id)}&be=${encodeURIComponent(event.id)}`) },

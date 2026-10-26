@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Shirt, HeartHandshake, Send, Trash2, Plus, Check, Loader2, ChevronDown } from 'lucide-react';
 import { Press, useToast, spring } from '../ui.jsx';
-import { bibsSettings, currentPractice, dateLabel, isLightHex, bibsFlex, kidName } from '../util.js';
+import { bibsSettings, bibColors, currentPractice, dateLabel, isLightHex, bibsFlex, kidName } from '../util.js';
 
 // ビブスの持ち帰り（2026-10-26 ユーザー決定）
 // 練習の1時間後に、まちさかマネージャーが担当の人（コーチ・管理者から何人でも）に1対1で知らせる（line-schedule-bot の api/bibs-reminder.js）
@@ -20,7 +20,7 @@ export function BibsCard({ ctx, onOpen }) {
   const takes = takesOf(data, ev.id);
   const asked = (data.bibAsks || []).some((a) => a.id === ev.id);
   if (!takes.length && !asked) return null;
-  const { colors } = bibsSettings(data);
+  const colors = bibColors(data);
   const mine = myKid && takes.filter((t) => t.studentId === myKid.id);
   return (
     <div className="mx-3 mt-3 bg-white rounded-2xl border border-gray-100">
@@ -37,7 +37,7 @@ export function BibsCard({ ctx, onOpen }) {
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {colors.map((c) => {
                   const who = takes.filter((t) => t.colorId === c.id).map((t) => kidName(students[t.studentId]));
-                  if (!who.length && !asked) return null;
+                  if (!who.length && (!asked || c.other)) return null;
                   return (
                     <span key={c.id} className={`flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 ${who.length ? 'bg-gray-50' : 'bg-amber-50 text-amber-800 font-bold'}`}>
                       <Sw hex={c.hex} round />{c.name}：{who.length ? who.join('、') : '未報告'}
@@ -60,7 +60,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
   const { data, students, myKid, actions } = ctx;
   const toast = useToast();
   const ev = data.events.find((e) => e.id === eventId);
-  const { colors } = bibsSettings(data);
+  const colors = bibColors(data);
   const takes = takesOf(data, eventId);
   const picked = colors.find((c) => c.id === color);
   const [thanked, setThanked] = useState(null);
@@ -84,7 +84,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
           <>
             <motion.span initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring} className="mx-auto w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center"><HeartHandshake className="w-8 h-8" /></motion.span>
             <p className="font-black text-lg">持ち帰り、ありがとうございます！</p>
-            <p className="text-sm text-gray-600">{thanked.name}のビブスを、{kidName(myKid)}の家族が洗ってくれます</p>
+            <p className="text-sm text-gray-600">{thanked.name}のビブスを、{kidName(myKid)}の家族が{thanked.other ? '持っています' : '洗ってくれます'}</p>
             <p className="text-[11px] text-gray-400">次の練習に持ってきてください（{dateLabel(ev.date)} 練習の分）</p>
           </>
         ) : (
@@ -103,7 +103,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
             return (
               <div key={c.id} className="flex items-center gap-2.5 p-3">
                 <Sw hex={c.hex} /><b className="w-20 shrink-0 truncate">{c.name}</b>
-                <span className={`flex-1 min-w-0 truncate ${who.length ? 'text-gray-700' : 'text-amber-700 font-bold'}`}>{who.length ? who.map((t) => `${kidName(students[t.studentId])}の家族`).join('、') : 'まだ誰も'}</span>
+                <span className={`flex-1 min-w-0 truncate ${who.length ? 'text-gray-700' : c.other ? 'text-gray-400' : 'text-amber-700 font-bold'}`}>{who.length ? who.map((t) => `${kidName(students[t.studentId])}の家族`).join('、') : c.other ? 'なし' : 'まだ誰も'}</span>
                 {meToo && <button onClick={() => remove(c)} className="text-[11px] text-red-600 font-bold shrink-0">取り消す</button>}
               </div>
             );
@@ -111,7 +111,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
         </div>
         {myKid && colors.some((c) => !takes.some((t) => t.colorId === c.id && t.studentId === myKid.id)) && (
           <>
-            <p className="text-xs text-gray-500">持ち帰った色を押すと記録できます（いくつでも）</p>
+            <p className="text-xs text-gray-500">持ち帰った色を押すと記録できます（いくつでも。色が分からない残りは「その他」）</p>
             <div className="flex gap-1.5 flex-wrap">
               {colors.filter((c) => !takes.some((t) => t.colorId === c.id && t.studentId === myKid.id)).map((c) => (
                 <Press key={c.id} onClick={() => add(c)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${isLightHex(c.hex) ? 'text-gray-900' : 'text-white'}`} style={{ background: c.hex }}>＋ {c.name}</Press>
@@ -133,7 +133,7 @@ export function BibsSend({ ctx, eventId, onDone }) {
   const { data, actions } = ctx;
   const toast = useToast();
   const ev = data.events.find((e) => e.id === eventId) || currentPractice(data.events);
-  const { colors } = bibsSettings(data);
+  const colors = bibColors(data);
   const asked = ev && (data.bibAsks || []).find((a) => a.id === ev.id);
   if (!ev) return <p className="p-6 text-center text-sm text-gray-500">聞く練習がありません</p>;
   const send = async () => {
@@ -149,7 +149,7 @@ export function BibsSend({ ctx, eventId, onDone }) {
       <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 space-y-2">
         <p className="text-[11px] font-bold text-emerald-600">ビブスの持ち帰り</p>
         <p className="font-bold">{dateLabel(ev.date)} {ev.title}</p>
-        <p className="text-[13px] text-gray-600">持ち帰った方は、色を押してください（いくつでも）</p>
+        <p className="text-[13px] text-gray-600">持ち帰った方は、色を押してください（いくつでも）。色が分からない残りは「その他」</p>
         <div className="grid grid-cols-2 gap-1.5 text-sm font-bold text-center">
           {colors.map((c) => <span key={c.id} className={`rounded-lg py-2.5 ${isLightHex(c.hex) ? 'text-gray-900' : 'text-white'}`} style={{ background: c.hex }}>{c.name}</span>)}
         </div>
@@ -173,7 +173,7 @@ export function BibsSettings({ ctx, onAsk }) {
   const toggleAsker = (uid) => save({ askers: cur.askers.includes(uid) ? cur.askers.filter((x) => x !== uid) : [...cur.askers, uid] });
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3 text-sm">
-      <div><b>ビブスの設定</b><p className="text-xs text-gray-500 mt-0.5">買い足したり捨てたりしたら、ここで色を直してください。</p></div>
+      <div><b>ビブスの設定</b><p className="text-xs text-gray-500 mt-0.5">買い足したり捨てたりしたら、ここで色を直してください。色が分からない残りのビブス用に「その他」がいつも最後に出ます。</p></div>
       <div className="rounded-xl border divide-y">
         {colors.map((c, i) => (
           <div key={c.id} className="flex items-center gap-2.5 p-2">

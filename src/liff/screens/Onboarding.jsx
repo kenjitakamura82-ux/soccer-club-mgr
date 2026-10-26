@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronLeft, ChevronRight, CreditCard, Info, Shirt, Users, Loader2, Save } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Info, Shirt, Users, Loader2, Save } from 'lucide-react';
 import { Press, Avatar, DrawCheck, useToast, spring } from '../ui.jsx';
 import { onboardingSettings, onboardingSteps, joinPaymentId, joinAmounts, STRIPE_FEE_NOTE, jersey } from '../util.js';
 import Register from './Register.jsx';
@@ -300,8 +300,10 @@ export function NewFamilies({ ctx }) {
 }
 
 // 入会の設定（会計・管理者・案内係）。金額を変えても、もう払った家族には影響しない（払う前の家族は、支払いの画面を開いたときに新しい金額になる）
-export function OnboardingSettings({ ctx }) {
+// collapsible: 名簿タブではふだん閉じておく（押すと開く）
+export function OnboardingSettings({ ctx, collapsible }) {
   const toast = useToast();
+  const [open, setOpen] = useState(!collapsible);
   const cur = onboardingSettings(ctx.data);
   const [f, setF] = useState({ annualFee: String(cur.annualFee), uniformPrice: String(cur.uniformPrice), sizes: cur.sizes.join(' '), feeIncluded: cur.feeIncluded, inviteUrl: cur.inviteUrl });
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e?.target ? e.target.value : e }));
@@ -315,7 +317,13 @@ export function OnboardingSettings({ ctx }) {
   };
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3 text-sm">
-      <div><b>入会の設定</b><p className="text-xs text-gray-500 mt-0.5">新しく入った家族の「はじめての準備」で使う金額と、全体LINEの招待リンクです。</p></div>
+      {collapsible ? (
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-2 text-left">
+          <span className="flex-1"><b>入会の設定</b><span className="block text-xs text-gray-500 mt-0.5">年会費・ユニフォーム代・全体LINEの招待リンク</span></span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      ) : <div><b>入会の設定</b><p className="text-xs text-gray-500 mt-0.5">新しく入った家族の「はじめての準備」で使う金額と、全体LINEの招待リンクです。</p></div>}
+      {open && <>
       <div className="grid grid-cols-2 gap-2">
         <label className="block"><span className="text-xs text-gray-500">年会費（円）</span><input className={input} inputMode="numeric" value={f.annualFee} onChange={(e) => set('annualFee')(e.target.value.replace(/[^0-9]/g, ''))} /></label>
         <label className="block"><span className="text-xs text-gray-500">ユニフォーム代（円）</span><input className={input} inputMode="numeric" value={f.uniformPrice} onChange={(e) => set('uniformPrice')(e.target.value.replace(/[^0-9]/g, ''))} /></label>
@@ -325,6 +333,7 @@ export function OnboardingSettings({ ctx }) {
       <label className="block"><span className="text-xs text-gray-500">全体LINEの招待リンク（グループの設定で作るリンク）</span><input className={input} value={f.inviteUrl} onChange={set('inviteUrl')} placeholder="https://line.me/R/ti/g/..." /></label>
       <p className="text-[11px] text-gray-500">招待リンクは、案内のカードから開く準備の画面の中だけに出します。</p>
       <Press onClick={save} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-2.5 font-bold"><Save className="w-4 h-4" />保存</Press>
+      </>}
     </section>
   );
 }

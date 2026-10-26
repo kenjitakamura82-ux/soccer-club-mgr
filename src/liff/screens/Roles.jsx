@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, Send } from 'lucide-react';
 import { entryFlex } from '../util.js';
-import { OnboardingSettings } from './Onboarding.jsx';
 import { BibsSettings } from './Bibs.jsx';
 import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 
@@ -37,7 +36,6 @@ export default function Roles({ ctx, open }) {
       <ReminderDay ctx={ctx} />
       <WeekendMode ctx={ctx} />
       <EntryCard ctx={ctx} />
-      <OnboardingSettings ctx={ctx} />
       <BibsSettings ctx={ctx} onAsk={() => open('bibsSend:now')} />
       <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿を見ることだけできます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
