@@ -291,15 +291,15 @@ export function weekendFlex(events, liffUrl) {
   };
 }
 
-// 選抜メンバーのお知らせ。選抜担当が「人を選んで送る」で全体LINEに送る。選ばれた子の家族に配車の希望を入れてもらう
+// 出場メンバーのお知らせ。メンバー登録担当が「人を選んで送る」で全体LINEに送る。選ばれた子の家族に配車の希望を入れてもらう
 export function selectionFlex(event, names, liffUrl) {
   return {
     type: 'flex',
-    altText: `選抜メンバーのお知らせ：${dateLabel(event.date)} ${event.title}`,
+    altText: `出場メンバーのお知らせ：${dateLabel(event.date)} ${event.title}`,
     contents: {
       type: 'bubble',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', action: { type: 'uri', label: '開く', uri: liffUrl }, contents: [
-        { type: 'text', text: '選抜メンバーのお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: '出場メンバーのお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
         { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
         { type: 'separator', margin: 'md' },
         { type: 'text', text: `${names.length}人：${names.join('、')}`, size: 'sm', wrap: true, margin: 'md' },

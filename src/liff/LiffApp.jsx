@@ -8,6 +8,7 @@ import { Welcome, Venue } from './screens/Guide.jsx';
 import WeekendSend from './screens/WeekendSend.jsx';
 import Select from './screens/Select.jsx';
 import Onboarding from './screens/Onboarding.jsx';
+import HowTo from './screens/HowTo.jsx';
 import Analytics from './screens/Analytics.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
@@ -122,7 +123,7 @@ function Main({ data, actions }) {
     { id: 'home', icon: CalendarDays, label: '予定' },
     myKid && { id: 'pay', icon: Wallet, label: '集金' },
     { id: 'roster', icon: Contact, label: '名簿' },
-    has('select') && { id: 'select', icon: ListChecks, label: '選抜' },
+    has('select') && { id: 'select', icon: ListChecks, label: 'メンバー' },
     has('ride') && { id: 'coach', icon: Car, label: '配車まとめ' },
     has('pay') && { id: 'payadmin', icon: Receipt, label: '集金確認' },
     has('admin') && { id: 'roles', icon: Shield, label: '管理' },
@@ -168,6 +169,7 @@ function Main({ data, actions }) {
               </div>
               {overlay === 'welcome' && <Welcome ctx={ctx} onVenue={() => setOverlay('venue')} onDone={() => setOverlay(null)} />}
               {overlay === 'venue' && <Venue ctx={ctx} onDone={() => setOverlay(null)} />}
+              {overlay === 'howto' && <HowTo ctx={ctx} onDone={() => setOverlay(null)} doneLabel="閉じる" />}
               {overlay === 'weekendSend' && <WeekendSend ctx={ctx} onDone={() => setOverlay(null)} />}
             </div>
           </motion.div>

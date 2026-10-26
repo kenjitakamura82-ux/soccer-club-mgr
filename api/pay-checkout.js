@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   } else {
     const att = (await pub.collection('attendances').doc(`${eventId}_${studentId}`).get()).data();
     const picked = e.selection ? (await pub.collection('selections').doc(eventId).get()).data()?.studentIds || [] : null;
-    if (att?.status !== '参加' || (picked && !picked.includes(studentId))) return res.status(403).json({ error: 'この集金の対象ではありません（参加の子、選抜ありなら選ばれた子だけ）' });
+    if (att?.status !== '参加' || (picked && !picked.includes(studentId))) return res.status(403).json({ error: 'この集金の対象ではありません（参加の子、人数の限りがある試合は出場メンバーだけ）' });
   }
 
   const done = (await pub.collection('paymentStatuses').doc(`${eventId}_${studentId}`).get()).data();

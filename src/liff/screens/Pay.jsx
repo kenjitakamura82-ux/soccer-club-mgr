@@ -125,7 +125,7 @@ export function PayAdmin({ ctx }) {
               ))}
             </div>
             {unpaid.length > 0 && <p className="text-xs text-amber-800 bg-amber-50 rounded-xl px-3 py-2 mb-2"><b>まだの家族：</b>{unpaid.join('、')}</p>}
-            {p.kind !== 'custom' && p.event?.selection && <p className="text-[11px] text-gray-500 mb-2">選抜ありの試合なので、選ばれた子の家族だけが対象です。</p>}
+            {p.kind !== 'custom' && p.event?.selection && <p className="text-[11px] text-gray-500 mb-2">人数の限りがある試合なので、出場メンバーの家族だけが対象です。</p>}
             <ul className="divide-y divide-gray-100">
               {rows.map(({ sid, s, ps }) => {
                 const st = statusOf(ps);
@@ -261,7 +261,7 @@ function PayForm({ ctx, initial, onDone }) {
         {kind === 'custom' && <KidPicker ctx={ctx} value={targets} onChange={setTargets} />}
       </div>
       {kind === 'event' && event && already(event.id) && !initial.event && <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">この予定にはもう集金があります。保存すると内容を書き換えます。</p>}
-      {kind === 'event' && <p className="text-xs text-gray-500">払うのは「参加」と答えた子の家族です。選抜ありの試合は、選ばれた子の家族だけです。</p>}
+      {kind === 'event' && <p className="text-xs text-gray-500">払うのは「参加」と答えた子の家族です。人数の限りがある試合は、出場メンバーの家族だけです。</p>}
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
       <Press onClick={save} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">保存</Press>
       {editingPay && <button onClick={stop} className="w-full text-sm text-red-600 py-2">この集金を止める</button>}

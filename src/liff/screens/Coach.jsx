@@ -15,14 +15,14 @@ export default function Coach({ ctx }) {
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 [scrollbar-width:none]">
         {events.map((e) => (
           <Press key={e.id} onClick={() => setEventId(e.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold border ${e.id === eventId ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}>
-            {dateLabel(e.date)} {e.title}{e.selection && !selectionOf(ctx.data, e.id) ? '・選抜待ち' : ''}
+            {dateLabel(e.date)} {e.title}{e.selection && !selectionOf(ctx.data, e.id) ? '・メンバー調整中' : ''}
           </Press>
         ))}
       </div>
       <Nudge key={`n-${event.id}`} ctx={ctx} event={event} />
       {/* 予定を切り替えたら作業中の割り振りも作り直す */}
       {event.selection && !selectionOf(ctx.data, event.id)
-        ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は選抜ありです。選抜担当が出る子を確定すると、選ばれた子だけで配車を組めます。</p>
+        ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は人数の限りがあります。メンバー登録担当が出場メンバーを確定すると、そのメンバーで配車を組めます。</p>
         : <Planner key={event.id} ctx={ctx} event={event} />}
     </div>
   );

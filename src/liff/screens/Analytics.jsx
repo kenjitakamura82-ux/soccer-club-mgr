@@ -12,7 +12,7 @@ import { dateLabel } from '../util.js';
 export const KINDS = {
   weekend: '週末リマインド',
   nudge: '回答のお願い',
-  selection: '選抜メンバー',
+  selection: '出場メンバー',
   pay: '集金のお知らせ',
   rideplan: '配車表',
   entry: '入口カード',

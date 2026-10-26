@@ -4,7 +4,7 @@ import { Check, ChevronLeft, ChevronRight, CreditCard, Info, Shirt, Users, Loade
 import { Press, Avatar, DrawCheck, useToast, spring } from '../ui.jsx';
 import { onboardingSettings, onboardingSteps, joinPaymentId, joinAmounts, STRIPE_FEE_NOTE, jersey } from '../util.js';
 import Register from './Register.jsx';
-import { Welcome, Venue } from './Guide.jsx';
+import HowTo from './HowTo.jsx';
 
 // 新しく入った家族の「はじめての準備」（2026-10-26 ユーザー決定）。案内係が送るカード（?onboarding=1）から始まり、終わるまでは開くたびにこの画面。
 // 1 全体LINEに参加 → 2 お子さんの登録 → 3 予定の見かた → 4 ユニフォーム・背番号（早い者勝ち） → 5 支払い（年会費＋ユニフォーム代を1回で）
@@ -99,11 +99,10 @@ function LineStep({ ctx, onDone }) {
   );
 }
 
+// 3. 予定の見かた：出欠の答え方・ルール・試合のこと・配車を、動く見本で説明する（持ち物などの案内と練習場の使い方はここでは出さない。2026-10-26 ユーザー決定）
 function GuideStep({ ctx, onDone }) {
-  const [venue, setVenue] = useState(false);
   const ok = async () => { await ctx.actions.saveOnboarding({ guide: true }); onDone(); };
-  if (venue) return <Venue ctx={ctx} onDone={() => setVenue(false)} />;
-  return <Welcome ctx={ctx} onVenue={() => setVenue(true)} onDone={ok} doneLabel="確認しました" />;
+  return <HowTo ctx={ctx} onDone={ok} />;
 }
 
 // ユニフォーム：買う／今は買わない。買うならサイズと背番号（空いている番号から早い者勝ち。決めたあともコーチ・管理者は名簿で直せる）

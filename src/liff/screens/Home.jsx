@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, CalendarPlus, Pencil, X, Paperclip } from 'lucide-react';
+import { BookOpen, Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, CalendarPlus, Pencil, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
@@ -25,7 +25,8 @@ export default function Home({ ctx, open }) {
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 px-3 pt-3">
+      <div className="grid grid-cols-3 gap-2 px-3 pt-3">
+        <Press onClick={() => open('howto')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><BookOpen className="w-4 h-4" />使い方</Press>
         <Press onClick={() => open('welcome')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Info className="w-4 h-4" />はじめての方へ</Press>
         <Press onClick={() => open('venue')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Map className="w-4 h-4" />練習場の使い方</Press>
       </div>
@@ -85,7 +86,7 @@ function EventRow({ e, ctx, status, first, last, onOpen }) {
   const picked = !!myKid && !!sel?.studentIds.includes(myKid.id);
   const needWish = picked && !canceled && !data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
   const waiting = !!myKid && e.selection && !sel && status === '参加';
-  const third = needWish ? '選ばれました ・ 配車の希望を入れてください' : waiting ? '選抜待ち' : unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
+  const third = needWish ? '出場メンバーに入りました ・ 配車の希望を入れてください' : waiting ? 'メンバー調整中' : unread ? `締切 ${dateLabel(deadlineOf(e))}${memo ? ` ・ ${memo}` : ''}` : memo || (count ? `${count}人が参加予定` : '');
   return (
     <motion.li variants={rowVariants} onClick={onOpen}
       className={`bg-white grid grid-cols-[46px_minmax(0,1fr)_auto] gap-x-3 pl-2.5 pr-3 py-3 cursor-pointer active:bg-gray-100 ${first ? 'rounded-t-2xl' : 'rounded-t'} ${last ? 'rounded-b-2xl' : 'rounded-b'}`}>
@@ -235,7 +236,7 @@ function EventDetail({ e, ctx, open, onEdit }) {
 
       {e.selection && !isCanceled(e) && <SelectionSection e={e} ctx={ctx} />}
 
-      {/* 選抜ありの試合は、選ばれた子の家族にだけ出す。選抜は出欠の締切のあとに決まることがあるので、締切後も入力できる */}
+      {/* 人数の限りがある試合は、出場メンバーの家族にだけ出す。メンバーは出欠の締切のあとに決まることがあるので、締切後も入力できる */}
       {myKid && status === '参加' && needsRide(e) && inRide(e, data, myKid.id) && (!isClosed(e) || e.selection) && <RideForm e={e} ctx={ctx} />}
 
       <section>
@@ -257,9 +258,9 @@ function SelectionSection({ e, ctx }) {
   const wished = mine && data.rides.some((r) => r.eventId === e.id && r.studentId === myKid.id);
   return (
     <section className="bg-gray-50 rounded-2xl p-3 space-y-2">
-      <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />選抜メンバー{sel && `（${picked.length}人）`}</h4>
-      {!sel && <p className="text-gray-500 text-xs">この試合は選抜があります。決まったらここに出ます。</p>}
-      {mine && !wished && <p className="text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-xs font-bold">{myKid.childName}さんが選ばれました。下で配車の希望を入れてください。</p>}
+      <h4 className="font-bold text-xs text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />出場メンバー{sel && `（${picked.length}人）`}</h4>
+      {!sel && <p className="text-gray-500 text-xs">出場登録できる人数に限りがあるため、コーチが出場メンバーを決めます。決まったらここに出ます。</p>}
+      {mine && !wished && <p className="text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-xs font-bold">{myKid.childName}さんが出場メンバーに入りました。下で配車の希望を入れてください。</p>}
       {sel && (
         <div className="flex flex-wrap gap-3">
           {picked.map((s) => <span key={s.id} className="flex flex-col items-center gap-1 text-[11px] text-gray-600 w-12"><Avatar student={s} photo={photos[s.id]} size={40} /><span className="truncate w-full text-center">{s.childName}</span></span>)}
