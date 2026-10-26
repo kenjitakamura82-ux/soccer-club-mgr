@@ -22,7 +22,7 @@ export default function Coach({ ctx }) {
       <Nudge key={`n-${event.id}`} ctx={ctx} event={event} />
       {/* 予定を切り替えたら作業中の割り振りも作り直す */}
       {event.selection && !selectionOf(ctx.data, event.id)
-        ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は人数の限りがあります。メンバー登録担当が出場メンバーを確定すると、そのメンバーで配車を組めます。</p>
+        ? <p className="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm">この試合は人数の限りがあります。メンバー選出担当が出場メンバーを確定すると、そのメンバーで配車を組めます。</p>
         : <Planner key={event.id} ctx={ctx} event={event} />}
     </div>
   );

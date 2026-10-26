@@ -9,7 +9,7 @@ import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 export const ROLES = [
   { id: 'coach', name: 'コーチ', desc: '名簿に子どもを追加し、名前・背番号を直す' },
   { id: 'ride', name: '配車担当', desc: '配車の希望を見て割り振り、グループに共有する' },
-  { id: 'select', name: 'メンバー登録担当', desc: '人数の限りがある試合で、出場メンバーを決めて確定する' },
+  { id: 'select', name: 'メンバー選出担当', desc: '人数の限りがある試合で、出場メンバーを決めて確定する' },
   { id: 'pay', name: '会計', desc: '家族ごとの支払い状況を見て、確認済みにする' },
   { id: 'guide', name: '案内係', desc: '新しく入った人に案内を送る' },
   { id: 'admin', name: '管理者', desc: '役割の付け替え、名簿の修正、分析' },

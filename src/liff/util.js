@@ -298,7 +298,7 @@ export function weekendFlex(events, liffUrl) {
   };
 }
 
-// 出場メンバーのお知らせ。メンバー登録担当が「人を選んで送る」で全体LINEに送る。選ばれた子の家族に配車の希望を入れてもらう
+// 出場メンバーのお知らせ。メンバー選出担当が「人を選んで送る」で全体LINEに送る。選ばれた子の家族に配車の希望を入れてもらう
 export function selectionFlex(event, names, liffUrl) {
   return {
     type: 'flex',

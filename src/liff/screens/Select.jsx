@@ -4,7 +4,7 @@ import { Check, Send } from 'lucide-react';
 import { Press, Avatar, useToast, spring } from '../ui.jsx';
 import { upcomingEvents, needsRide, dateLabel, jersey, selectionOf, selectionFlex } from '../util.js';
 
-// メンバー登録担当の画面。出場登録できる人数に限りがある試合（selection: true）で、参加と答えた子の中から出場メンバーを決めて確定し、全体LINEに知らせる。
+// メンバー選出担当の画面。出場登録できる人数に限りがある試合（selection: true）で、参加と答えた子の中から出場メンバーを決めて確定し、全体LINEに知らせる。
 // 「選抜」とは言わない（圧力を感じるため。2026-10-26 ユーザー決定）。基本はみんなで参加する方針。人数の限りは予定の追加・修正画面で付ける
 export default function Select({ ctx }) {
   const events = upcomingEvents(ctx.data.events, 42).filter((e) => needsRide(e) && e.selection);

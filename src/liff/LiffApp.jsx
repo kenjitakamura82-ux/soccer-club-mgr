@@ -140,7 +140,7 @@ function Main({ data, actions }) {
     { id: 'home', icon: CalendarDays, label: '予定' },
     myKid && { id: 'pay', icon: Wallet, label: '集金' },
     { id: 'roster', icon: Contact, label: '名簿' },
-    has('select') && { id: 'select', icon: ListChecks, label: 'メンバー' },
+    has('select') && { id: 'select', icon: ListChecks, label: 'メンバー選出' },
     has('ride') && { id: 'coach', icon: Car, label: '配車まとめ' },
     has('pay') && { id: 'payadmin', icon: Receipt, label: '集金確認' },
     has('admin') && { id: 'roles', icon: Shield, label: '管理' },
