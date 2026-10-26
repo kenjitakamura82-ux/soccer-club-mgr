@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ClipboardList, History, Target, ChevronUp, ChevronDown, Trash2, Plus, Minus, NotebookPen, Lock, Pin, Save } from 'lucide-react';
+import { ClipboardList, History, Target, ChevronUp, ChevronDown, Trash2, Plus, Minus, NotebookPen, Lock, Pin, Save, Split, Shuffle, FlaskConical, Users } from 'lucide-react';
 import { Sheet, Press, Avatar, useToast, spring } from '../ui.jsx';
-import { PLAN_TEMPLATE, eventMinutes, fitBlocks, fromMinutes, toMinutes, startOf, planOf, prevPlan, canPlan, noteEvent, dateLabel, isCanceled, todayJst, kidName } from '../util.js';
+import { PLAN_TEMPLATE, eventMinutes, fitBlocks, fromMinutes, toMinutes, startOf, planOf, prevPlan, canPlan, noteEvent, dateLabel, isCanceled, todayJst, kidName, bibsSettings } from '../util.js';
 
 // 練習補助・最初の版（2026-10-26 ユーザー決定）：練習メニュー（目的は必須・時間割・前回の流れを使う）、振り返り、プレイのメモ。
 // AIの提案・ドリルのアニメーションはこのあと足す。メモは書いた本人にしか見えない（ほかの家の子に書いてもよい）
 const uid = () => Math.random().toString(36).slice(2, 9);
-const withIds = (blocks) => blocks.map((b) => ({ id: b.id || uid(), name: b.name || '', min: b.min || 5, note: b.note || '', fixed: !!b.fixed }));
+const withIds = (blocks) => blocks.map((b) => ({ id: b.id || uid(), name: b.name || '', min: b.min || 5, note: b.note || '', fixed: !!b.fixed, split: !!b.split, parts: b.parts || {} }));
+// グループ（2026-10-26 ユーザー依頼）：ビブスの色ごと＋ビブスなし。途中の区切りから、グループごとに別のメニューにできる（split）
+const groupChoices = (data) => [...bibsSettings(data).colors.filter((c) => c.id !== 'other').map(({ id, name, hex }) => ({ id, name, hex })), { id: 'none', name: 'ビブスなし', hex: '#d1d5db' }];
+const Sw = ({ hex }) => <span className="inline-block w-3 h-3 rounded-sm shrink-0 border border-black/10" style={{ background: hex }} />;
+const TestBadge = () => <span className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-700 bg-violet-50 rounded-full px-2 py-0.5"><FlaskConical className="w-3 h-3" />テスト版・管理者だけに表示</span>;
 // 各区切りの始まりの時刻（分）
 const startsOf = (start, blocks) => blocks.reduce((acc, b, i) => [...acc, i ? acc[i - 1] + blocks[i - 1].min : start], []);
 const sumMin = (blocks) => blocks.reduce((s, b) => s + (b.min || 0), 0);
@@ -67,9 +71,19 @@ export function PlanSummary({ e, ctx, onEdit }) {
       {plan ? (
         <>
           <p className="flex items-start gap-1.5 font-bold"><Target className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{plan.purpose}</p>
+          {plan.groups?.length > 0 && (
+            <div className="space-y-0.5">
+              {plan.groups.map((g) => <p key={g.id} className="flex items-start gap-1.5 text-[12px]"><span className="mt-1"><Sw hex={g.hex} /></span><b className="shrink-0">{g.name}</b><span className="text-gray-600 min-w-0">{g.studentIds.map((id) => kidName(ctx.students[id])).join('・') || 'まだいません'}</span></p>)}
+            </div>
+          )}
           <ol className="space-y-1">
             {plan.blocks.map((b, i) => { const s = starts[i]; return (
-              <li key={b.id} className="flex gap-2 text-[13px]"><span className="w-10 shrink-0 text-gray-500 tabular-nums">{fromMinutes(s)}</span><span className="flex-1 min-w-0"><b className="font-bold">{b.name || 'メニュー'}</b>{b.note && <span className="block text-[11px] text-gray-500">{b.note}</span>}</span><span className="text-gray-500 tabular-nums">{b.min}分</span></li>
+              <li key={b.id} className="flex gap-2 text-[13px]"><span className="w-10 shrink-0 text-gray-500 tabular-nums">{fromMinutes(s)}</span>
+                <span className="flex-1 min-w-0">
+                  {b.split && plan.groups?.length
+                    ? plan.groups.map((g) => <span key={g.id} className="flex items-start gap-1.5"><span className="mt-1"><Sw hex={g.hex} /></span><span className="min-w-0"><b className="font-bold">{b.parts?.[g.id]?.name || '（未定）'}</b>{b.parts?.[g.id]?.note && <span className="block text-[11px] text-gray-500">{b.parts[g.id].note}</span>}</span></span>)
+                    : <><b className="font-bold">{b.name || 'メニュー'}</b>{b.note && <span className="block text-[11px] text-gray-500">{b.note}</span>}</>}
+                </span><span className="text-gray-500 tabular-nums">{b.min}分</span></li>
             ); })}
           </ol>
         </>
@@ -97,6 +111,7 @@ function PlanEditor({ e, ctx, onClose }) {
   const [total, setTotal] = useState(plan?.total || eventMinutes(e));
   const [blocks, setBlocks] = useState(() => withIds(plan?.blocks || fitBlocks(PLAN_TEMPLATE, eventMinutes(e))));
   const [review, setReview] = useState(plan?.review?.text || '');
+  const [groups, setGroups] = useState(plan?.groups || []);
   const [err, setErr] = useState('');
   const start = toMinutes(startOf(e)) ?? 9 * 60;
   const sum = sumMin(blocks);
@@ -104,10 +119,10 @@ function PlanEditor({ e, ctx, onClose }) {
 
   const set = (i, patch) => setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const move = (i, d) => setBlocks((bs) => { const a = bs.slice(); const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
-  const usePrev = () => { setBlocks(withIds(fitBlocks(prev.blocks, total))); if (!purpose) setPurpose(prev.purpose || ''); toast('前回の流れを入れました', `${dateLabel(prev.date)} の練習から。時間に合わせてあります`); };
+  const usePrev = () => { setBlocks(withIds(fitBlocks(prev.blocks, total))); if (!purpose) setPurpose(prev.purpose || ''); if (!groups.length && prev.groups?.length) setGroups(prev.groups.map((g) => ({ ...g, studentIds: [] }))); toast('前回の流れを入れました', `${dateLabel(prev.date)} の練習から。時間に合わせてあります`); };
   const save = async () => {
     if (!purpose.trim()) { setErr('今日の目的を入れてください'); return; }
-    await actions.savePlan(e, { purpose: purpose.trim(), total, blocks: blocks.map(({ id, name, min, note, fixed }) => ({ id, name: name.trim(), min, note: note.trim(), fixed })), review: review.trim() });
+    await actions.savePlan(e, { purpose: purpose.trim(), total, blocks: blocks.map(({ id, name, min, note, fixed, split, parts }) => ({ id, name: name.trim(), min, note: note.trim(), fixed, split: split && groups.length > 0, parts: split ? Object.fromEntries(groups.map((g) => [g.id, { name: (parts[g.id]?.name || '').trim(), note: (parts[g.id]?.note || '').trim() }])) : {} })), review: review.trim(), groups });
     toast('メニューを保存しました');
     onClose();
   };
@@ -128,6 +143,8 @@ function PlanEditor({ e, ctx, onClose }) {
           <Press onClick={usePrev} className="border border-emerald-200 text-emerald-700 rounded-lg px-3 py-1.5 font-bold">使う</Press>
         </div>
       )}
+
+      <GroupsEditor e={e} ctx={ctx} groups={groups} setGroups={setGroups} />
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -157,17 +174,30 @@ function PlanEditor({ e, ctx, onClose }) {
                 </div>
                 <div className="flex items-center gap-1.5 pl-12">
                   <input className="flex-1 min-w-0 bg-white/70 border border-gray-200 rounded-lg px-2 py-1 text-base" value={b.note} onChange={(ev) => set(i, { note: ev.target.value })} placeholder="ねらい・やり方" aria-label="ねらい・やり方" />
+                  {groups.length > 0 && <button type="button" onClick={() => set(i, { split: !b.split })} aria-pressed={b.split} aria-label="グループごとに分ける" title="グループごとに分ける" className={`w-7 h-7 rounded-full grid place-items-center ${b.split ? 'bg-emerald-600 text-white' : 'text-gray-400'}`}><Split className="w-3.5 h-3.5" /></button>}
                   <button type="button" onClick={() => set(i, { fixed: !b.fixed })} aria-pressed={b.fixed} aria-label="時間を固定する" title="時間を固定" className={`w-7 h-7 rounded-full grid place-items-center ${b.fixed ? 'bg-gray-700 text-white' : 'text-gray-400'}`}><Pin className="w-3.5 h-3.5" /></button>
                   <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="上へ" className="w-7 h-7 grid place-items-center text-gray-500 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
                   <button type="button" onClick={() => move(i, 1)} disabled={i === blocks.length - 1} aria-label="下へ" className="w-7 h-7 grid place-items-center text-gray-500 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
                   <button type="button" onClick={() => setBlocks((bs) => bs.filter((_, j) => j !== i))} aria-label="消す" className="w-7 h-7 grid place-items-center text-gray-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
+                {b.split && groups.length > 0 && (
+                  <div className="pl-12 space-y-1.5">
+                    <p className="text-[11px] text-emerald-800 font-bold">この時間はグループごとに別のメニュー（上の名前はまとめの呼び名）</p>
+                    {groups.map((g) => (
+                      <div key={g.id} className="flex items-center gap-1.5">
+                        <Sw hex={g.hex} />
+                        <input className="w-[42%] min-w-0 bg-white border border-gray-200 rounded-lg px-2 py-1 text-base font-bold" value={b.parts[g.id]?.name || ''} onChange={(ev) => set(i, { parts: { ...b.parts, [g.id]: { ...b.parts[g.id], name: ev.target.value } } })} placeholder={`${g.name}のメニュー`} aria-label={`${g.name}のメニュー`} />
+                        <input className="flex-1 min-w-0 bg-white/70 border border-gray-200 rounded-lg px-2 py-1 text-base" value={b.parts[g.id]?.note || ''} onChange={(ev) => set(i, { parts: { ...b.parts, [g.id]: { ...b.parts[g.id], note: ev.target.value } } })} placeholder="ねらい" aria-label={`${g.name}のねらい`} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.li>
             ); })}
           </AnimatePresence>
         </ol>
         <button type="button" onClick={() => setBlocks((bs) => [...bs.slice(0, -1), { id: uid(), name: '', min: 15, note: '', fixed: false }, ...bs.slice(-1)])} className="w-full flex items-center justify-center gap-1 text-emerald-700 font-bold border border-dashed border-emerald-200 rounded-xl py-2"><Plus className="w-4 h-4" />メニューを足す</button>
-        <p className="text-[11px] text-gray-400"><Pin className="w-3 h-3 inline -mt-0.5" /> を付けた区切り（集合・給水など）は、「時間に合わせる」で長さが変わりません。</p>
+        <p className="text-[11px] text-gray-400"><Pin className="w-3 h-3 inline -mt-0.5" /> を付けた区切り（集合・給水など）は、「時間に合わせる」で長さが変わりません。{groups.length > 0 && <> <Split className="w-3 h-3 inline -mt-0.5" /> を付けた区切りは、グループごとに別のメニューを入れられます。</>}</p>
       </div>
 
       {past && (
@@ -180,26 +210,27 @@ function PlanEditor({ e, ctx, onClose }) {
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
       <Press onClick={save} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold"><Save className="w-4 h-4" />保存</Press>
 
-      {past && <div className="border-t border-gray-100 pt-4"><NotesBody e={e} ctx={ctx} /></div>}
+      {past && ctx.has('admin') && <div className="border-t border-gray-100 pt-4 space-y-2"><p className="text-xs font-bold text-gray-500 flex items-center gap-2">プレイのメモ <TestBadge /></p><NotesBody e={e} ctx={ctx} /></div>}
     </div>
   );
 }
 
 // 予定画面の上：最近の練習・試合のプレイのメモ（だれでも）。ふだんは1行
+// プレイのメモは、しばらく管理者だけのテスト版（2026-10-26 ユーザー決定）
 export function NotesCard({ ctx }) {
   const e = noteEvent(ctx.data.events);
   const [open, setOpen] = useState(false);
-  if (!e) return null;
+  if (!e || !ctx.has('admin')) return null;
   const mine = (ctx.data.playerNotes || []).filter((n) => n.eventId === e.id).length;
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="mx-3 mt-3 w-[calc(100%-1.5rem)] bg-white rounded-2xl border border-gray-100 flex items-center gap-1.5 px-3 py-2.5 text-left">
         <NotebookPen className="w-4 h-4 text-emerald-600" />
-        <span className="font-bold text-sm flex-1">プレイのメモ</span>
+        <span className="font-bold text-sm flex-1 flex items-center gap-1.5 flex-wrap">プレイのメモ <TestBadge /></span>
         <span className="text-[11px] text-gray-400">{dateLabel(e.date)} {e.title}{mine ? `・${mine}件` : ''}</span>
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={`${dateLabel(e.date)} ${e.title} のプレイのメモ`}>
-        {open && <NotesBody e={e} ctx={ctx} />}
+        {open && <div className="space-y-3"><TestBadge /><NotesBody e={e} ctx={ctx} /></div>}
       </Sheet>
     </>
   );
@@ -246,6 +277,53 @@ function NotesBody({ e, ctx }) {
               <button type="button" onClick={() => actions.deleteNote(n.id).then(() => toast('メモを消しました'))} aria-label="消す" className="text-gray-400 p-1"><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// グループ分け：使う色を選び、参加と答えた子を色に振り分ける
+function GroupsEditor({ e, ctx, groups, setGroups }) {
+  const { data, students, photos } = ctx;
+  const choices = groupChoices(data);
+  const attending = data.attendances.filter((a) => a.eventId === e.id && a.status === '参加').map((a) => students[a.studentId]).filter(Boolean);
+  const assigned = new Set(groups.flatMap((g) => g.studentIds));
+  const kids = [...attending, ...[...assigned].map((id) => students[id]).filter((s) => s && !attending.some((x) => x.id === s.id))];
+  const groupOf = (sid) => groups.find((g) => g.studentIds.includes(sid))?.id;
+  const toggleGroup = (c) => setGroups((gs) => (gs.some((g) => g.id === c.id) ? gs.filter((g) => g.id !== c.id) : [...gs, { ...c, studentIds: [] }].sort((a, b) => choices.findIndex((x) => x.id === a.id) - choices.findIndex((x) => x.id === b.id))));
+  const assign = (sid, gid) => setGroups((gs) => gs.map((g) => ({ ...g, studentIds: g.id === gid ? [...g.studentIds.filter((x) => x !== sid), sid] : g.studentIds.filter((x) => x !== sid) })));
+  const auto = () => {
+    const order = attending.map((s) => s.id).sort(() => Math.random() - 0.5);
+    setGroups((gs) => gs.map((g, gi) => ({ ...g, studentIds: order.filter((_, i) => i % gs.length === gi) })));
+  };
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-bold text-gray-500 flex items-center gap-1"><Users className="w-4 h-4" />グループ（ビブスの色）</span>
+      <div className="flex flex-wrap gap-1.5">
+        {choices.map((c) => {
+          const on = groups.some((g) => g.id === c.id);
+          return <button key={c.id} type="button" onClick={() => toggleGroup(c)} aria-pressed={on} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${on ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200'}`}><Sw hex={c.hex} />{c.name}</button>;
+        })}
+      </div>
+      {!groups.length && <p className="text-[11px] text-gray-400">分けないときは選ばなくてOK。選ぶと、子どもを色に振り分けて、途中からグループごとに別のメニューにできます</p>}
+      {groups.length > 0 && (
+        <div className="bg-gray-50 rounded-xl p-2 space-y-1">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-[11px] text-gray-500 flex-1">参加と答えた子 {attending.length}人{kids.length - assigned.size > 0 ? `・未定 ${kids.length - assigned.size}人` : ''}</span>
+            <Press onClick={auto} className="flex items-center gap-1 text-xs font-bold text-emerald-700 border border-emerald-200 bg-white rounded-full px-3 py-1"><Shuffle className="w-3.5 h-3.5" />自動で分ける</Press>
+          </div>
+          {kids.map((k) => (
+            <div key={k.id} className="flex items-center gap-2 bg-white rounded-lg px-2 py-1">
+              <Avatar student={k} photo={photos[k.id]} size={24} />
+              <span className="flex-1 min-w-0 truncate text-[13px] font-bold">{k.childName}</span>
+              {groups.map((g) => {
+                const on = groupOf(k.id) === g.id;
+                return <button key={g.id} type="button" onClick={() => assign(k.id, g.id)} aria-pressed={on} aria-label={`${k.childName}を${g.name}にする`} className={`w-7 h-7 rounded-full grid place-items-center border-2 ${on ? 'border-emerald-600' : 'border-transparent'}`}><span className="w-4 h-4 rounded-full border border-black/10" style={{ background: g.hex }} /></button>;
+              })}
+            </div>
+          ))}
+          {!kids.length && <p className="text-[11px] text-gray-400 px-1 py-1">まだ参加と答えた子がいません</p>}
         </div>
       )}
     </div>

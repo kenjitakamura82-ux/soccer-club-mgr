@@ -195,8 +195,8 @@ export const actions = {
 
   // 退会（2026-10-26 ユーザー決定）。消さずに印を付け、一覧から外す。背番号は空けて、元に戻すとき用に残す
   // 練習メニュー（コーチ・管理者）。振り返りも同じドキュメントに入れる
-  savePlan: (e, { purpose, total, blocks, review }) => setDoc(doc(db, 'artifacts', APP_ID, 'practicePlans', e.id), {
-    eventId: e.id, date: e.date, purpose, total, blocks,
+  savePlan: (e, { purpose, total, blocks, review, groups = [] }) => setDoc(doc(db, 'artifacts', APP_ID, 'practicePlans', e.id), {
+    eventId: e.id, date: e.date, purpose, total, blocks, groups,
     review: review ? { text: review, by: me?.displayName || '', at: now() } : null,
     by: me?.displayName || '', uid: me?.uid || '', updatedAt: now(),
   }, { merge: true }),

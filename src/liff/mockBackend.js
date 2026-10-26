@@ -146,7 +146,7 @@ export const actions = {
     upsert('students', studentId, { jerseyNumber: String(n) });
   },
   saveJoinPayment: async (studentId, { title, items, amount, baseAmount }) => upsert('payments', `join-${studentId}`, { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true }),
-  savePlan: async (e, { purpose, total, blocks, review }) => upsert('practicePlans', e.id, { eventId: e.id, date: e.date, purpose, total, blocks, review: review ? { text: review, by: 'me' } : null }),
+  savePlan: async (e, { purpose, total, blocks, review, groups = [] }) => upsert('practicePlans', e.id, { eventId: e.id, date: e.date, purpose, total, blocks, groups, review: review ? { text: review, by: 'me' } : null }),
   addNote: async (n) => upsert('playerNotes', `n${Date.now()}`, { ...n, uid: meId, at: new Date().toISOString() }),
   deleteNote: async (id) => { state.playerNotes = state.playerNotes.filter((n) => n.id !== id); setTimeout(emit, 100); },
   withdrawKid: async (s) => upsert('students', s.id, { withdrawnAt: new Date().toISOString(), jerseyBeforeWithdraw: s.jerseyNumber || '', jerseyNumber: '' }),
