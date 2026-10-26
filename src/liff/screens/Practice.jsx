@@ -6,6 +6,10 @@ import { PLAN_TEMPLATE, eventMinutes, fitBlocks, fromMinutes, toMinutes, startOf
 
 // 練習補助・最初の版（2026-10-26 ユーザー決定）：練習メニュー（目的は必須・時間割・前回の流れを使う）、振り返り、プレイのメモ。
 // AIの提案・ドリルのアニメーションはこのあと足す。メモは書いた本人にしか見えない（ほかの家の子に書いてもよい）
+// プレイのメモは、いったん誰にも出さない（管理者も。2026-10-27 ユーザー決定）。書いたメモ（playerNotes）は消さずに残してある。
+// また使うときは true にするだけで、管理者だけのテスト版に戻る
+const NOTES_ENABLED = false;
+
 const uid = () => Math.random().toString(36).slice(2, 9);
 const withIds = (blocks) => blocks.map((b) => ({ id: b.id || uid(), name: b.name || '', min: b.min || 5, note: b.note || '', fixed: !!b.fixed, split: !!b.split, parts: b.parts || {} }));
 // グループ（2026-10-26 ユーザー依頼）：ビブスの色ごと＋ビブスなし。途中の区切りから、グループごとに別のメニューにできる（split）
@@ -210,7 +214,7 @@ function PlanEditor({ e, ctx, onClose }) {
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
       <Press onClick={save} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold"><Save className="w-4 h-4" />保存</Press>
 
-      {past && ctx.has('admin') && <div className="border-t border-gray-100 pt-4 space-y-2"><p className="text-xs font-bold text-gray-500 flex items-center gap-2">プレイのメモ <TestBadge /></p><NotesBody e={e} ctx={ctx} /></div>}
+      {past && NOTES_ENABLED && ctx.has('admin') && <div className="border-t border-gray-100 pt-4 space-y-2"><p className="text-xs font-bold text-gray-500 flex items-center gap-2">プレイのメモ <TestBadge /></p><NotesBody e={e} ctx={ctx} /></div>}
     </div>
   );
 }
@@ -220,7 +224,7 @@ function PlanEditor({ e, ctx, onClose }) {
 export function NotesCard({ ctx }) {
   const e = noteEvent(ctx.data.events);
   const [open, setOpen] = useState(false);
-  if (!e || !ctx.has('admin')) return null;
+  if (!e || !NOTES_ENABLED || !ctx.has('admin')) return null;
   const mine = (ctx.data.playerNotes || []).filter((n) => n.eventId === e.id).length;
   return (
     <>
