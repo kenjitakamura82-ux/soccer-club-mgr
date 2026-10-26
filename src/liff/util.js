@@ -40,6 +40,10 @@ export const payTargets = (p, data) => {
 // カード・Apple Pay の手数料（Stripe の国内カード 3.6%）を含めた金額（10円単位で切り上げ）。全員同じ金額にするための目安
 export const CARD_FEE_RATE = 0.036;
 export const withCardFee = (n) => Math.ceil(n / (1 - CARD_FEE_RATE) / 10) * 10;
+// 手数料込みにした集金の内訳（baseAmount は込みにする前の金額）。込みでなければ null
+export const feeBreakdown = (p) => (p?.baseAmount > 0 && p.amount > p.baseAmount ? { base: p.baseAmount, fee: p.amount - p.baseAmount } : null);
+// 保護者が金額を見る場所すべてに出す説明（2026-10-26 ユーザー決定：Stripe の手数料がかかることを保護者にちゃんと伝える）
+export const STRIPE_FEE_NOTE = '決済サービス「Stripe（ストライプ）」の手数料（3.6%）を含んだ金額です。お支払い方法によらず同じ金額です。';
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {
@@ -210,6 +214,10 @@ export function payFlex(event, payment, liffUrl) {
         { type: 'text', text: head, weight: 'bold', size: 'md', wrap: true },
         { type: 'text', text: what, size: 'sm', color: '#555555', wrap: true },
         ...(yen ? [{ type: 'text', text: yen, size: 'xxl', weight: 'bold', margin: 'md' }] : []),
+        ...(feeBreakdown(payment) ? [
+          { type: 'text', text: `（${feeBreakdown(payment).base.toLocaleString()}円＋決済手数料 ${feeBreakdown(payment).fee.toLocaleString()}円）`, size: 'xs', color: '#555555', wrap: true },
+          { type: 'text', text: STRIPE_FEE_NOTE, size: 'xs', color: '#888888', wrap: true },
+        ] : []),
         { type: 'text', text: 'アプリの「集金」から、カード・Apple Pay で払えます。ことら送金をしたら「ことら送金した」を押してください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [

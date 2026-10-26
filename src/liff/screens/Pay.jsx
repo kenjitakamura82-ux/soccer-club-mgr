@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Clock, Wallet, Plus, Send, Pencil, CreditCard, Search, Check, Calculator } from 'lucide-react';
 import { Press, Avatar, DrawCheck, Sheet, Segmented, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
-import { dateLabel, jersey, isCanceled, todayJst, addDays, payFlex, payTargets, paymentEvent, withCardFee, CARD_FEE_RATE } from '../util.js';
+import { dateLabel, jersey, isCanceled, todayJst, addDays, payFlex, payTargets, paymentEvent, withCardFee, CARD_FEE_RATE, feeBreakdown, STRIPE_FEE_NOTE } from '../util.js';
 
 // 有効な集金。予定の集金（payments/{予定のID}）と、個別の集金（kind: 'custom'。入会費・ユニフォーム代など、予定にひも付かない）
 const activePayments = (data) => data.payments
@@ -44,6 +44,12 @@ export function MyPay({ ctx }) {
             <p className="text-xs text-gray-500">{payLabel(p)}</p>
             <p className="font-bold">{payTitle(p)}</p>
             {p.amount && <p className="text-2xl font-black tabular-nums mt-1">{yen(p.amount)}</p>}
+            {feeBreakdown(p) && (
+              <div className="mt-1.5 rounded-lg bg-gray-50 px-3 py-2 text-[11px] text-gray-600 leading-relaxed">
+                <p className="tabular-nums">{yen(feeBreakdown(p).base)} ＋ 決済手数料 {yen(feeBreakdown(p).fee)}</p>
+                <p className="text-gray-500">{STRIPE_FEE_NOTE}</p>
+              </div>
+            )}
             <div className="mt-3 min-h-[52px] grid place-items-center">
               <AnimatePresence mode="wait">
                 <motion.div key={st} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }} transition={spring} className="w-full grid place-items-center">
@@ -188,7 +194,7 @@ function PayForm({ ctx, initial, onDone }) {
   const [title, setTitle] = useState((editingPay?.kind === 'custom' ? editingPay.title : editingPay?.description) || '');
   const [amount, setAmountRaw] = useState(editingPay?.amount ? String(editingPay.amount) : '');
   // 手数料込みにする前の金額。込みにしたあとは、もう一度は計算しない（押すたびに手数料が重ならないように）。金額を手で変えたら解除
-  const [feeBase, setFeeBase] = useState(null);
+  const [feeBase, setFeeBase] = useState(() => (feeBreakdown(editingPay) ? editingPay.baseAmount : null));
   const setAmount = (v) => { setAmountRaw(v); setFeeBase(null); };
   const [targets, setTargets] = useState(() => new Set(editingPay?.targets || []));
   const [err, setErr] = useState('');
@@ -206,11 +212,11 @@ function PayForm({ ctx, initial, onDone }) {
     try {
       let p;
       if (kind === 'event') {
-        const fields = { description: title.trim(), amount: amount ? Number(amount) : null, isActive: true };
+        const fields = { description: title.trim(), amount: amount ? Number(amount) : null, baseAmount: feeBase || null, isActive: true };
         await ctx.actions.savePayment(event.id, fields, ctx.myName);
         p = { ...fields, id: event.id, eventId: event.id, event };
       } else {
-        const fields = { title: title.trim(), amount: Number(amount), targets: [...targets], isActive: true };
+        const fields = { title: title.trim(), amount: Number(amount), baseAmount: feeBase || null, targets: [...targets], isActive: true };
         const id = await ctx.actions.saveCustomPayment(editingPay?.id || null, fields, ctx.myName);
         p = { ...fields, id, kind: 'custom' };
       }
@@ -272,7 +278,7 @@ function FeeHelper({ amount, base, onApply, onUndo }) {
       <Check className="w-4 h-4 mt-0.5 shrink-0" />
       <div className="flex-1">
         <p>手数料込みの金額にしました（元の金額 <span className="tabular-nums">{yen(base)}</span>）</p>
-        <p className="text-emerald-800/70">手数料{(CARD_FEE_RATE * 100).toFixed(1)}%分を足して、10円単位で切り上げています</p>
+        <p className="text-emerald-800/70">Stripe（ストライプ）の手数料{(CARD_FEE_RATE * 100).toFixed(1)}%分を足して、10円単位で切り上げています。保護者の画面とお知らせに、内訳と手数料の説明が出ます</p>
       </div>
       <button type="button" onClick={onUndo} className="shrink-0 border border-emerald-200 bg-white rounded-lg px-2 py-1 font-bold">元に戻す</button>
     </div>
@@ -283,7 +289,7 @@ function FeeHelper({ amount, base, onApply, onUndo }) {
     <div className="flex items-start gap-2 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-600">
       <Calculator className="w-4 h-4 mt-0.5 shrink-0" />
       <div className="flex-1">
-        <p>{CARD}の手数料（{(CARD_FEE_RATE * 100).toFixed(1)}%）を含めるなら <b className="tabular-nums">{yen(v)}</b>（10円単位で切り上げ）</p>
+        <p>{CARD}の手数料（Stripe・{(CARD_FEE_RATE * 100).toFixed(1)}%）を含めるなら <b className="tabular-nums">{yen(v)}</b>（10円単位で切り上げ）</p>
         <p className="text-gray-400">カードだけ金額を上げることはできないので、ことら送金の人も同じ金額になります</p>
       </div>
       <button type="button" onClick={() => onApply(v)} className="shrink-0 border border-gray-300 bg-white rounded-lg px-2 py-1 font-bold text-gray-700">この金額にする</button>

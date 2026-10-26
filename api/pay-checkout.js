@@ -64,7 +64,8 @@ export default async function handler(req, res) {
     'line_items[0][price_data][currency]': 'jpy',
     'line_items[0][price_data][unit_amount]': String(Math.round(p.amount)),
     'line_items[0][price_data][product_data][name]': custom ? p.title || '集金' : `${dateLabel(e.date)} ${e.title} ${p.description || '集金'}`,
-    'line_items[0][price_data][product_data][description]': `${kid?.childName || ''}さんの分`,
+    // 手数料込みの集金は、Stripe の支払い画面にも内訳を出す（保護者がどこでも手数料に気づけるように。2026-10-26 ユーザー決定）
+    'line_items[0][price_data][product_data][description]': `${kid?.childName || ''}さんの分${p.baseAmount > 0 && p.amount > p.baseAmount ? `（${p.baseAmount.toLocaleString()}円＋決済サービス Stripe の手数料 ${(p.amount - p.baseAmount).toLocaleString()}円）` : ''}`,
     'metadata[eventId]': eventId,
     'metadata[studentId]': studentId,
     'metadata[uid]': claims.uid,

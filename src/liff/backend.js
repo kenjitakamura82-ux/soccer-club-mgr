@@ -150,8 +150,9 @@ export const actions = {
   },
 
   // 集金の設定。既存アプリ（src/App.jsx の savePaymentDoc）と同じ形で payments/{予定のID} に入れる
-  savePayment: (eventId, { description, amount, isActive }, by) =>
-    setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, isActive, setBy: by, updatedAt: now() }, { merge: true }),
+  // baseAmount は手数料込みにする前の金額（込みでなければ null）。保護者の画面で内訳と Stripe の手数料の説明を出すのに使う
+  savePayment: (eventId, { description, amount, isActive, baseAmount = null }, by) =>
+    setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, baseAmount, isActive, setBy: by, updatedAt: now() }, { merge: true }),
 
   // カード払い（Stripe）。サーバーが支払い画面を作るので、そこへ移る。払い終わると LINE版に ?paid=1 で戻ってくる
   async startCardPay(eventId) {
