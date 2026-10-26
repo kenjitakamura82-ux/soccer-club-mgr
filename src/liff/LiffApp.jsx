@@ -9,6 +9,7 @@ import WeekendSend from './screens/WeekendSend.jsx';
 import Select from './screens/Select.jsx';
 import Onboarding from './screens/Onboarding.jsx';
 import HowTo from './screens/HowTo.jsx';
+import { BibsView, BibsSend } from './screens/Bibs.jsx';
 import Analytics from './screens/Analytics.jsx';
 import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
@@ -109,8 +110,12 @@ function Main({ data, actions }) {
   // 担当の人に届くお知らせの「全体LINEに送る」は ?send=weekend 付きで開く（LIFFのURLを通すと liff.state に入ってくることもある）
   const [overlay, setOverlay] = useState(() => {
     const q = new URLSearchParams(location.search);
-    const send = q.get('send') || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('send');
-    return send === 'weekend' ? 'weekendSend' : null;
+    const inner = new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, ''));
+    const get = (k) => q.get(k) || inner.get(k);
+    // ビブス：担当の人へのお知らせ（?bibs=予定のID）、全体LINEのカードの色（?bib=色&be=予定のID）
+    if (get('bibs')) return `bibsSend:${get('bibs')}`;
+    if (get('bib') && get('be')) return `bibsView:${get('be')}:${get('bib')}`;
+    return get('send') === 'weekend' ? 'weekendSend' : null;
   });
   const [kidSheet, setKidSheet] = useState(false);
   const needsRegister = !me.studentId;
@@ -157,7 +162,7 @@ function Main({ data, actions }) {
             {current === 'select' && <Select ctx={ctx} />}
             {current === 'coach' && <Coach ctx={ctx} />}
             {current === 'payadmin' && <PayAdmin ctx={ctx} />}
-            {current === 'roles' && <Roles ctx={ctx} />}
+            {current === 'roles' && <Roles ctx={ctx} open={open} />}
             {current === 'analytics' && <Analytics ctx={ctx} />}
           </motion.div>
         </AnimatePresence>
@@ -182,6 +187,8 @@ function Main({ data, actions }) {
               {overlay === 'welcome' && <Welcome ctx={ctx} onVenue={() => setOverlay('venue')} onDone={() => setOverlay(null)} />}
               {overlay === 'venue' && <Venue ctx={ctx} onDone={() => setOverlay(null)} />}
               {overlay === 'howto' && <HowTo ctx={ctx} onDone={() => setOverlay(null)} doneLabel="閉じる" />}
+              {overlay.startsWith('bibsView:') && <BibsView ctx={ctx} eventId={overlay.split(':')[1]} color={overlay.split(':')[2]} onDone={() => setOverlay(null)} />}
+              {overlay.startsWith('bibsSend:') && <BibsSend ctx={ctx} eventId={overlay.split(':')[1]} onDone={() => setOverlay(null)} />}
               {overlay === 'weekendSend' && <WeekendSend ctx={ctx} onDone={() => setOverlay(null)} />}
             </div>
           </motion.div>

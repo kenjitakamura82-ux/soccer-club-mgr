@@ -6,6 +6,7 @@ const sat = untilWeekday(6), sun = untilWeekday(0) || 7;
 
 const state = {
   events: [
+    { id: 'ev0', date: day(-2), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
     { id: 'ev1', date: day(sat), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド', hasAttachments: true, memo: '出欠は調整さんでも受付中 https://chouseisan.com/s?h=example' },
     { id: 'ev2', date: day(sun), type: '試合', title: '練習試合（△△SC）', gatherTime: '08:30', startTime: '09:30', location: '〇〇市民運動場' },
     { id: 'ev3', date: day(sat + 7), type: '練習', title: '練習', startTime: '09:00', endTime: '11:00', location: '柏の葉小 第二グラウンド' },
@@ -37,6 +38,9 @@ const state = {
   paymentStatuses: [{ id: 'ev2_s3', eventId: 'ev2', studentId: 's3', status: 'transferred', responderName: '颯真パパ' }],
   ridePlans: [],
   selections: [],
+  bibTakes: [],
+  bibAsks: [],
+  bibsSettings: {},
   settings: {},
   onboardingSettings: {},
   jerseyNumbers: {},
@@ -120,6 +124,10 @@ export const actions = {
     const m = state.members.find((x) => x.id === uid); delete m.onboarding; upsert('members', uid, {});
     if (studentId) { state.paymentStatuses = state.paymentStatuses.filter((x) => !(x.eventId === `join-${studentId}` && !x.isConfirmed)); upsert('payments', `join-${studentId}`, { isActive: false }); }
   },
+  takeBib: async (eventId, colorId, studentId) => upsert('bibTakes', `${eventId}_${colorId}_${studentId}`, { eventId, colorId, studentId, uid: meId, at: new Date().toISOString() }),
+  untakeBib: async (eventId, colorId, studentId) => { state.bibTakes = state.bibTakes.filter((x) => x.id !== `${eventId}_${colorId}_${studentId}`); setTimeout(emit, 150); },
+  markBibsAsked: async (eventId) => upsert('bibAsks', eventId, { eventId, by: state.members.find((m) => m.id === meId)?.displayName, at: new Date().toISOString() }),
+  saveBibsSettings: async (fields) => { state.bibsSettings = { ...state.bibsSettings, ...fields }; setTimeout(emit, 150); },
   saveOnboardingSettings: async (fields) => { state.onboardingSettings = { ...state.onboardingSettings, ...fields }; setTimeout(emit, 150); },
   claimJersey: async (studentId, n) => {
     const holder = state.jerseyNumbers[n];
@@ -143,7 +151,7 @@ export const actions = {
   saveSelection: async (eventId, studentIds, by) => upsert('selections', eventId, { eventId, studentIds, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
   saveRidePlan: async (eventId, cars, by) => upsert('ridePlans', eventId, { eventId, cars, confirmedBy: by, confirmedAt: new Date().toISOString() }, false),
   saveReminderDay: async (weekendDay) => { state.settings = { ...state.settings, weekendDay }; setTimeout(emit, 150); },
-  saveWeekendMode: async (weekendMode, relayUid) => { state.settings = { ...state.settings, weekendMode, relayUid }; setTimeout(emit, 150); },
+  saveWeekendMode: async (weekendMode, relayUids) => { state.settings = { ...state.settings, weekendMode, relayUids, relayUid: relayUids?.[0] || null }; setTimeout(emit, 150); },
   setRoles: async (uid, roles) => upsert('members', uid, { roles }),
   // 本番と同じく少し遅れて届く（見本の画像）
   loadVenue: async () => { await new Promise((r) => setTimeout(r, 700)); const svg = (t) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="400" height="240" fill="#e0f2fe"/><text x="200" y="130" font-size="26" text-anchor="middle" fill="#075985">${t}</text></svg>`); return { map: svg('地図（見本）'), gateNo: svg('通用門（見本）'), gateYes: svg('入口（見本）') }; },

@@ -95,10 +95,11 @@ export function subscribe(onData) {
       state[key] = map(snap); onData({ ...state });
     }, (e) => console.error(key, e)));
   };
-  ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections'].forEach((k) => listen(k, pub(k)));
+  ['events', 'attendances', 'rides', 'students', 'payments', 'paymentStatuses', 'ridePlans', 'studentPhotos', 'selections', 'bibTakes', 'bibAsks'].forEach((k) => listen(k, pub(k)));
   listen('members', collection(db, 'artifacts', APP_ID, 'members'));
   listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
   listen('onboardingSettings', doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), (s) => s.data() || {});
+  listen('bibsSettings', doc(db, 'artifacts', APP_ID, 'settings', 'bibs'), (s) => s.data() || {});
   listen('me', memberDoc(me.uid), (s) => { me = { ...me, ...s.data() }; return { uid: me.uid, ...me }; });
   return () => unsubs.forEach((u) => u());
 }
@@ -156,6 +157,13 @@ export const actions = {
     if (ps.exists() && !ps.data().isConfirmed && ps.data().method !== 'card') await deleteDoc(psRef);
     if (!ps.exists() || !ps.data().isConfirmed) await setDoc(pubDoc('payments', pid), { isActive: false, updatedAt: now() }, { merge: true });
   },
+  // ビブスの持ち帰り。1件＝予定×色×子ども（bibTakes/{予定}_{色}_{子ども}）。取り消しは消す
+  takeBib: (eventId, colorId, studentId) => setDoc(pubDoc('bibTakes', `${eventId}_${colorId}_${studentId}`), { eventId, colorId, studentId, uid: me?.uid || '', by: me?.displayName || '', at: now() }),
+  untakeBib: (eventId, colorId, studentId) => deleteDoc(pubDoc('bibTakes', `${eventId}_${colorId}_${studentId}`)),
+  // 担当の誰かが全体LINEに聞いたら記録（ほかの担当に「〇〇さんが送りました」と出す）
+  markBibsAsked: (eventId) => setDoc(pubDoc('bibAsks', eventId), { eventId, by: me?.displayName || '', uid: me?.uid || '', at: now() }),
+  // ビブスの設定（色・聞く担当・自動で聞くか）。管理者とコーチ
+  saveBibsSettings: (fields) => setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'bibs'), { ...fields, updatedAt: now() }, { merge: true }),
   // 入会の設定（会計・案内係・管理者）
   saveOnboardingSettings: (fields) => setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), { ...fields, updatedAt: now() }, { merge: true }),
   // 背番号を早い者勝ちで取る。番号ごとの印（jerseyNumbers/{番号}）をトランザクションで取り合い、先に取った子だけが通る。
@@ -238,8 +246,9 @@ export const actions = {
     setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendDay, updatedAt: now() }, { merge: true }),
 
   // 週末リマインドの送り方。group＝公式アカウントがグループに直接送る、relay＝担当の人（relayUid）に1対1で頼み、担当の人が全体LINEに送る
-  saveWeekendMode: (weekendMode, relayUid) =>
-    setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendMode, relayUid: relayUid || null, updatedAt: now() }, { merge: true }),
+  // relayUids は頼む人（何人でも）。line-schedule-bot は relayUids を見る（古い relayUid も読む）
+  saveWeekendMode: (weekendMode, relayUids) =>
+    setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), { weekendMode, relayUids: relayUids || [], relayUid: (relayUids || [])[0] || null, updatedAt: now() }, { merge: true }),
 
   setRoles: (uid, roles) => updateDoc(memberDoc(uid), { roles, updatedAt: now() }),
 

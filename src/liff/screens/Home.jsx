@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { BookOpen, Info, Map, MapPin, Clock, Car, Users, FileText, Lock, CalendarClock, CalendarPlus, Pencil, X, Paperclip } from 'lucide-react';
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
+import { BibsCard } from './Bibs.jsx';
 import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 // 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
@@ -31,6 +32,8 @@ export default function Home({ ctx, open }) {
         <Press onClick={() => open('venue')} className="flex items-center justify-center gap-1.5 bg-white border border-gray-200 rounded-xl py-2 text-[13px] font-bold text-emerald-700"><Map className="w-4 h-4" />練習場の使い方</Press>
       </div>
 
+
+      <BibsCard ctx={ctx} onOpen={(id) => open(`bibsView:${id}:view`)} />
 
       {myKid && (
         <motion.p layout className={`mx-3 mt-3 text-[13px] rounded-xl px-3 py-2 font-bold ${unanswered ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>

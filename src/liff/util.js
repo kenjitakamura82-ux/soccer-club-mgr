@@ -61,6 +61,13 @@ export function onboardingSteps(member, data) {
   const ps = sid && data.paymentStatuses?.find((x) => x.eventId === joinPaymentId(sid) && x.studentId === sid);
   return { line: !!o.line, kid: !!sid, guide: !!o.guide, uniform: !!o.uniform, pay: ps?.status === 'transferred' };
 }
+// ビブスの持ち帰り（2026-10-26 ユーザー決定）。色は管理タブで変えられる（settings/bibs）。無ければ今使っている3色
+export const BIB_DEFAULT_COLORS = [{ id: 'yellow', name: '黄色', hex: '#facc15' }, { id: 'pink', name: 'ピンク', hex: '#ec4899' }, { id: 'orange', name: 'オレンジ', hex: '#f97316' }];
+export const bibsSettings = (data) => ({ colors: BIB_DEFAULT_COLORS, askers: [], auto: true, ...(data.bibsSettings || {}) });
+// 明るい色（黄色など）は黒い文字にする
+export const isLightHex = (hex) => { const n = parseInt(String(hex).slice(1), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 > 170; };
+// 今の練習：今日までで一番新しい練習。次の練習の日になれば自然にそちらへ移る（＝持ち帰りの表示がリセットされる）
+export const currentPractice = (events) => events.filter((e) => e.type === '練習' && e.date && e.date <= todayJst() && !isCanceled(e)).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
 export const upcomingEvents = (events = [], days = 42) => {
@@ -342,6 +349,33 @@ export function nudgeFlex(event, what, liffUrl) {
 }
 
 // 新しく入った家族への案内（案内係が1対1で送る）。押すと「はじめての準備」（?onboarding=1）が開く（2026-10-26 ユーザー決定）
+// ビブスの持ち帰りを聞くカード。担当の人が「人を選んで送る」で全体LINEに送る。人が送るカードはリンクのボタンしか置けないので、
+// 色を押すとLINE版が開いて記録する（?bib=色&be=予定のID）
+export function bibsFlex(event, colors, liffUrl) {
+  const link = (q) => `${liffUrl}${liffUrl.includes('?') ? '&' : '?'}${q}`;
+  const rows = [];
+  for (let i = 0; i < colors.length; i += 2) rows.push(colors.slice(i, i + 2));
+  return {
+    type: 'flex',
+    altText: `ビブスの持ち帰り：${dateLabel(event.date)} ${event.title}`,
+    contents: {
+      type: 'bubble',
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [
+        { type: 'text', text: 'ビブスの持ち帰り', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: `${dateLabel(event.date)} ${event.title}`, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: '持ち帰った方は、色を押してください（いくつでも）', size: 'sm', color: '#555555', wrap: true },
+        ...rows.map((r) => ({ type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm', contents: r.map((c) => ({
+          type: 'button', height: 'sm', style: isLightHex(c.hex) ? 'secondary' : 'primary', color: c.hex,
+          action: { type: 'uri', label: c.name.slice(0, 20), uri: link(`bib=${encodeURIComponent(c.id)}&be=${encodeURIComponent(event.id)}`) },
+        })) })),
+      ] },
+      footer: { type: 'box', layout: 'vertical', contents: [
+        { type: 'button', style: 'link', height: 'sm', color: '#059669', action: { type: 'uri', label: '持ち帰り状況を見る・変える', uri: link(`bib=view&be=${encodeURIComponent(event.id)}`) } },
+      ] },
+    },
+  };
+}
+
 export function inviteFlex(liffUrl) {
   const url = `${liffUrl}${liffUrl.includes('?') ? '&' : '?'}onboarding=1`;
   const step = (t) => ({ type: 'text', text: t, size: 'sm', color: '#333333' });

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Check, Send } from 'lucide-react';
 import { entryFlex } from '../util.js';
 import { OnboardingSettings } from './Onboarding.jsx';
+import { BibsSettings } from './Bibs.jsx';
 import { Sheet, Press, Segmented, useToast, spring } from '../ui.jsx';
 
 export const ROLES = [
@@ -14,7 +15,7 @@ export const ROLES = [
   { id: 'admin', name: '管理者', desc: '役割の付け替え、名簿の修正、分析' },
 ];
 
-export default function Roles({ ctx }) {
+export default function Roles({ ctx, open }) {
   const members = ctx.data.members || [];
   const [editing, setEditing] = useState(null);
   return (
@@ -37,6 +38,7 @@ export default function Roles({ ctx }) {
       <WeekendMode ctx={ctx} />
       <EntryCard ctx={ctx} />
       <OnboardingSettings ctx={ctx} />
+      <BibsSettings ctx={ctx} onAsk={() => open('bibsSend:now')} />
       <p className="text-xs text-gray-400 px-1">役割を変えると、その人が次にアプリを開いたときから反映されます。役割のない人は、出欠・配車の希望・送金報告・名簿を見ることだけできます。</p>
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing && `${editing.name}にする人`}>
         {editing && <RolePicker ctx={ctx} role={editing} onClose={() => setEditing(null)} />}
@@ -77,27 +79,30 @@ function WeekendMode({ ctx }) {
   const members = (ctx.data.members || []).slice().sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '', 'ja'));
   const mode = s.weekendMode === 'relay' ? 'relay' : 'group';
   const guide = members.find((m) => (m.roles || []).includes('guide'));
-  const relayUid = s.relayUid || guide?.id || '';
-  const save = async (m, uid) => {
-    if (m === 'relay' && !uid) return toast('頼む人を選んでください');
-    await ctx.actions.saveWeekendMode(m, uid);
-    const who = members.find((x) => x.id === uid)?.displayName;
-    toast(m === 'relay' ? `${who}さんに頼みます` : 'グループに直接送ります', '次の送る日から反映されます');
+  // 頼む人は何人でも（2026-10-26 ユーザー決定）。誰か1人が送れば足りる
+  const relayUids = s.relayUids?.length ? s.relayUids : s.relayUid ? [s.relayUid] : guide ? [guide.id] : [];
+  const save = async (m, uids) => {
+    if (m === 'relay' && !uids.length) return toast('頼む人を選んでください');
+    await ctx.actions.saveWeekendMode(m, uids);
+    toast(m === 'relay' ? `${uids.length}人に頼みます` : 'グループに直接送ります', '次の送る日から反映されます');
   };
+  const toggle = (uid) => save('relay', relayUids.includes(uid) ? relayUids.filter((x) => x !== uid) : [...relayUids, uid]);
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
       <div>
         <b>週末リマインドの送り方</b>
         <p className="text-xs text-gray-500 mt-0.5">「担当の人に頼む」にすると、まちさかマネージャーが担当の人に1対1でお知らせし、担当の人がボタンから全体LINEに送ります。公式アカウントの通数は1通で済みます。</p>
       </div>
-      <Segmented id="weekend-mode" value={mode} onChange={(m) => save(m, relayUid)} options={[{ value: 'group', label: 'グループに直接送る' }, { value: 'relay', label: '担当の人に頼む' }]} />
+      <Segmented id="weekend-mode" value={mode} onChange={(m) => save(m, relayUids)} options={[{ value: 'group', label: 'グループに直接送る' }, { value: 'relay', label: '担当の人に頼む' }]} />
       {mode === 'relay' && (
-        <label className="block"><span className="text-xs text-gray-500">頼む人（まちさかマネージャーを友だち追加している人）</span>
-          <select className="w-full border border-gray-200 rounded-xl p-3 text-base bg-white" value={relayUid} onChange={(e) => save('relay', e.target.value)}>
-            {!relayUid && <option value="">選ぶ</option>}
-            {members.map((m) => <option key={m.id} value={m.id}>{m.displayName}{(m.roles || []).includes('guide') ? '（案内係）' : ''}</option>)}
-          </select>
-        </label>
+        <div><span className="text-xs text-gray-500">頼む人（何人でも。まちさかマネージャーを友だち追加している人）</span>
+          <div className="flex flex-wrap gap-1.5 mt-1.5 text-xs font-bold">
+            {members.map((m) => {
+              const on = relayUids.includes(m.id);
+              return <button key={m.id} type="button" onClick={() => toggle(m.id)} className={`flex items-center gap-1 rounded-full px-3 py-1.5 ${on ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{on && <Check className="w-3.5 h-3.5" />}{m.displayName}{(m.roles || []).includes('guide') ? '（案内係）' : ''}</button>;
+            })}
+          </div>
+        </div>
       )}
     </section>
   );
@@ -126,15 +131,32 @@ function RolePicker({ ctx, role, onClose }) {
   const toast = useToast();
   const members = (ctx.data.members || []).slice().sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '', 'ja'));
   const kid = (m) => ctx.students[m.studentId]?.childName;
+  const [handover, setHandover] = useState(null);
   const toggle = async (m) => {
     const cur = m.roles || [];
     const on = cur.includes(role.id);
-    if (on && role.id === 'admin' && members.filter((x) => (x.roles || []).includes('admin')).length === 1) return toast('管理者は1人以上必要です');
+    // 管理者は1人だけ（2026-10-26 ユーザー決定）。別の人を選ぶと、確認のうえ入れ替わる
+    if (role.id === 'admin') { if (!on) setHandover(m); return; }
     await ctx.actions.setRoles(m.id, on ? cur.filter((r) => r !== role.id) : [...cur, role.id]);
+  };
+  const doHandover = async () => {
+    const m = handover;
+    await ctx.actions.setRoles(m.id, [...(m.roles || []), 'admin']);
+    for (const x of members.filter((y) => y.id !== m.id && (y.roles || []).includes('admin'))) await ctx.actions.setRoles(x.id, (x.roles || []).filter((r) => r !== 'admin'));
+    setHandover(null);
+    toast(`管理者を${m.displayName}さんにしました`);
+    onClose();
   };
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-500 mb-1">一度でもアプリを開いた人が出ます</p>
+      <p className="text-xs text-gray-500 mb-1">一度でもアプリを開いた人が出ます{role.id === 'admin' && '。管理者は1人だけで、別の人を選ぶと入れ替わります'}</p>
+      {handover && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+          <p className="font-bold">管理者を{handover.displayName}さんに変えますか？</p>
+          <p className="text-xs mt-0.5">今の管理者は、管理者ではなくなります（ほかの役割はそのまま）。</p>
+          <div className="flex gap-2 mt-2"><Press onClick={doHandover} className="flex-1 bg-amber-600 text-white rounded-lg py-2 font-bold">変える</Press><Press onClick={() => setHandover(null)} className="flex-1 bg-white border border-amber-200 rounded-lg py-2 font-bold">やめる</Press></div>
+        </div>
+      )}
       {members.map((m) => {
         const on = (m.roles || []).includes(role.id);
         return (
