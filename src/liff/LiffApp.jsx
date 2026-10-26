@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, BarChart3, Shield, X, Loader2 } from 'lucide-react';
-import { ToastProvider, Skeleton, Avatar, useToast } from './ui.jsx';
+import { ToastProvider, Skeleton, OnboardingSkeleton, Avatar, useToast } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
 import { Welcome, Venue } from './screens/Guide.jsx';
@@ -34,7 +34,7 @@ export default function LiffApp() {
 
   if (error) return <Centered><p className="font-bold">開けませんでした</p><p className="text-sm text-gray-500 mt-1">{error}</p><p className="text-xs text-gray-400 mt-4">LINEのグループにあるリンクから開き直してください</p></Centered>;
   // 予定一覧も揃ってから出す（揃う前に出すと一瞬「予定はまだありません」が見えるため）
-  if (!backend || !data?.me || !data.students || !data.events) return <Shell><Skeleton /></Shell>;
+  if (!backend || !data?.me || !data.students || !data.events) return <Shell>{expectOnboarding() ? <OnboardingSkeleton /> : <Skeleton />}</Shell>;
   return <ToastProvider><Main data={data} actions={backend.actions} /><PaidNotice />{DEBUG && backend.timings && <Timings t={backend.timings} />}</ToastProvider>;
 }
 
@@ -64,6 +64,16 @@ function Timings({ t }) {
       {Object.entries(T_LABEL).map(([k, l]) => <p key={k}>{l}：{k in t ? `${(t[k] / 1000).toFixed(1)}秒` : '…'}</p>)}
     </div>
   );
+}
+
+// 読み込み中の仮表示を選ぶため、データが届く前に「はじめての準備」が出そうかを見る。
+// 案内のカード（?onboarding=1）から開いたか、この端末で準備の途中だったか（Onboarding.jsx が印を付ける）
+const ONBOARDING_FLAG = 'machisaka-onboarding';
+const onboardingFlag = (on) => { try { if (on) localStorage.setItem(ONBOARDING_FLAG, '1'); else localStorage.removeItem(ONBOARDING_FLAG); } catch { /* 保存できなくても仮表示が変わるだけ */ } };
+function expectOnboarding() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('onboarding') === '1' || new URLSearchParams((q.get('liff.state') || '').replace(/^[^?]*\?/, '')).get('onboarding') === '1') return true;
+  try { return localStorage.getItem(ONBOARDING_FLAG) === '1'; } catch { return false; }
 }
 
 function Centered({ children }) {
@@ -115,7 +125,9 @@ function Main({ data, actions }) {
   useEffect(() => {
     if (fromInvite && !ob?.started) actions.saveOnboarding({ started: true, at: new Date().toISOString() }).catch((e) => console.error(e));
   }, [fromInvite, ob?.started, actions]);
-  if ((fromInvite || ob?.started) && !ob?.done && !later) return <Shell><Onboarding ctx={ctx} onLater={() => setLater(true)} /></Shell>;
+  const showOnboarding = (fromInvite || ob?.started) && !ob?.done;
+  useEffect(() => { onboardingFlag(showOnboarding); }, [showOnboarding]);
+  if (showOnboarding && !later) return <Shell><Onboarding ctx={ctx} onLater={() => setLater(true)} /></Shell>;
 
   if (needsRegister) return <Shell><Register ctx={ctx} onDone={() => setOverlay('welcome')} /></Shell>;
 

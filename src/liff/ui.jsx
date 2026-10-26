@@ -83,6 +83,27 @@ export function Avatar({ student, photo, size = 36 }) {
 
 /* ---------- 読み込み中の仮表示 ---------- */
 // 読み込み後の予定一覧（Gmail風：上のボタン2つ、区切りの見出し、丸い日付＋3行＋右下の出欠）と同じ形にして、切り替わりで形が跳ねないようにする
+// はじめての準備を開く人向け（緑の帯＋5つの手順）。準備の画面と同じ形にして、切り替わりで形が跳ねないようにする
+export function OnboardingSkeleton() {
+  return (
+    <div>
+      <div className="bg-emerald-600 px-5 pt-5 pb-[27px]">
+        <div className="h-3 my-0.5 w-14 rounded bg-white/30" />
+        <div className="h-5 my-1 w-32 rounded bg-white/40" />
+        <div className="flex items-center gap-2 mt-3 h-4"><div className="flex-1 h-2 rounded-full bg-white/30" /><div className="h-3 w-8 rounded bg-white/30" /></div>
+      </div>
+      <div className="p-3 space-y-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-white rounded-xl p-3 flex items-center gap-3 border border-gray-100">
+            <div className="liff-skel w-7 h-7 rounded-full shrink-0" />
+            <div className="flex-1"><div className="liff-skel h-3.5 my-[4px] w-2/5 rounded" /><div className="liff-skel h-2.5 mt-[5px] mb-[4px] w-3/5 rounded" /></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Skeleton({ groups = [2, 3] }) {
   return (
     <div>

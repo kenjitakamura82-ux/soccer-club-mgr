@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Camera, ChevronLeft, Search, UserPlus } from 'lucide-react';
 import { Press, Avatar, useShake, useToast, spring } from '../ui.jsx';
-import { compressPhoto, jersey, canManageRoster } from '../util.js';
+import { compressPhoto, jersey } from '../util.js';
 
 const GRADES = ['年少', '年中', '年長', '1年', '2年', '3年', '4年', '5年', '6年'];
 
@@ -59,9 +59,8 @@ function PickKid({ ctx, onPick, onNew }) {
         ))}
       </motion.div>
       {!list.length && <p className="text-center text-sm text-gray-400 py-8">見つかりません</p>}
-      {canManageRoster(ctx.has)
-        ? <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-gray-600 border border-dashed border-gray-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
-        : <p className="mt-5 text-xs text-gray-500 text-center">名簿にお子さんがいないときは、コーチに伝えてください。名簿に入ったら、ここから選べます。</p>}
+      {/* 名簿にいない子は保護者が自分で入れる（コーチが足すと自分の子ではないので間違えやすく、手間もかかるため。2026-10-26 ユーザー決定） */}
+      <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm font-bold text-emerald-700 border border-dashed border-emerald-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
     </div>
   );
 }
@@ -107,11 +106,17 @@ export function NewKid({ ctx, back, onDone, forRoster }) {
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [scope, shake] = useShake();
-  const set = (k) => (e) => setF({ ...f, [k]: e.target ? e.target.value : e });
+  const [dupOk, setDupOk] = useState(false);
+  const set = (k) => (e) => { setF({ ...f, [k]: e.target ? e.target.value : e }); if (k === 'childName') setDupOk(false); };
+  // 保護者が入れるときは背番号を聞かない（ユニフォームを買うときに、空いている番号から選ぶ）。コーチ・管理者が名簿に足すときだけ聞く
+  const askNumber = forRoster;
+  const norm = (v) => String(v || '').replace(/\s/g, '');
+  const same = ctx.data.students.find((s) => norm(s.childName) && norm(s.childName) === norm(f.childName));
 
   const submit = async () => {
-    const no = f.jerseyNumber.trim();
+    const no = askNumber ? f.jerseyNumber.trim() : '';
     if (!f.childName.trim() || !f.kana.trim()) { setErr('名前とふりがなを入れてください'); return shake(); }
+    if (same && !dupOk) { setErr(`名簿に「${same.childName}」さんがもういます。同じ子なら、戻って名簿から選んでください。別の子なら、もう一度押すと登録します`); setDupOk(true); return shake(); }
     if (no && ctx.data.students.some((s) => String(s.jerseyNumber) === no)) { setErr(`背番号 ${no} はもう使われています`); return shake(); }
     setSaving(true);
     try {
@@ -126,14 +131,15 @@ export function NewKid({ ctx, back, onDone, forRoster }) {
     <div>
       {!forRoster && <Back onClick={back} />}
       {!forRoster && <h2 className="text-lg font-black mb-1">新しく入ったお子さんを登録</h2>}
-      <p className="text-sm text-gray-500 mb-4">{forRoster ? '保護者は、初めて開いたときにこの名簿からお子さんを選べます。' : '名簿にいないときだけ入力してください。'}</p>
+      <p className="text-sm text-gray-500 mb-4">{forRoster ? '保護者は、初めて開いたときにこの名簿からお子さんを選べます。名簿にいない子は、保護者が自分でも登録できます。' : '名簿にいないときだけ入力してください。入れた内容は、あとからコーチが直すこともできます。'}</p>
       <div ref={scope} className="space-y-3">
         <label className="block"><span className="text-xs text-gray-500">名前（漢字）</span><input className={input} value={f.childName} onChange={set('childName')} placeholder="例：佐藤 海斗" /></label>
         <label className="block"><span className="text-xs text-gray-500">ふりがな</span><input className={input} value={f.kana} onChange={set('kana')} placeholder="例：かいと" /></label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className={askNumber ? 'grid grid-cols-2 gap-2' : ''}>
           <label className="block"><span className="text-xs text-gray-500">学年</span><select className={input} value={f.grade} onChange={set('grade')}>{GRADES.map((g) => <option key={g}>{g}</option>)}</select></label>
-          <label className="block"><span className="text-xs text-gray-500">背番号（未定なら空ける）</span><input className={input} inputMode="numeric" value={f.jerseyNumber} onChange={set('jerseyNumber')} placeholder="未定" /></label>
+          {askNumber && <label className="block"><span className="text-xs text-gray-500">背番号（未定なら空ける）</span><input className={input} inputMode="numeric" value={f.jerseyNumber} onChange={set('jerseyNumber')} placeholder="未定" /></label>}
         </div>
+        {!askNumber && <p className="text-[11px] text-gray-500 -mt-1">背番号は、ユニフォームを買うときに空いている番号から選べます</p>}
         <div><span className="text-xs text-gray-500">顔写真（みんなが顔と名前を早く覚えるため）</span><PhotoPicker value={f.photo} onChange={set('photo')} /></div>
       </div>
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
