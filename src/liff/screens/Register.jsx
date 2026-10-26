@@ -4,7 +4,12 @@ import { Camera, ChevronLeft, Search, UserPlus } from 'lucide-react';
 import { Press, Avatar, useShake, useToast, spring } from '../ui.jsx';
 import { compressPhoto, jersey } from '../util.js';
 
-const GRADES = ['年少', '年中', '年長', '1年', '2年', '3年', '4年', '5年', '6年'];
+// 学年ごとのチームなので、新しく入る子の学年は名簿でいちばん多い学年にする（今は2年。無ければ2年）
+const teamGrade = (students) => {
+  const n = {};
+  students.forEach((s) => { if (s.grade) n[s.grade] = (n[s.grade] || 0) + 1; });
+  return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || '2年';
+};
 
 // 名簿（TeamHubから入れた子）から選ぶのが基本。名簿にいない子だけ新しく入力する
 export default function Register({ ctx, onDone }) {
@@ -43,11 +48,13 @@ function PickKid({ ctx, onPick, onNew }) {
   const list = ctx.data.students
     .filter((s) => !s.id.startsWith('coach_'))
     .filter((s) => !q || norm(`${s.childName}${s.kana}${s.jerseyNumber}`).includes(norm(q)))
-    .sort((a, b) => jersey(a) - jersey(b) || (a.childName || '').localeCompare(b.childName || '', 'ja'));
+    .sort((a, b) => (a.jerseyNumber ? 1 : 0) - (b.jerseyNumber ? 1 : 0) || jersey(a) - jersey(b) || (a.childName || '').localeCompare(b.childName || '', 'ja'));
   return (
     <div>
       <h2 className="text-lg font-black">ようこそ、{ctx.myName}さん</h2>
       <p className="text-sm text-gray-500 mt-1 mb-3">最初の1回だけ、名簿からお子さんを選んでください。父母どちらが選んでも、同じ家族としてまとまります。</p>
+      {/* 名簿にいない子は保護者が自分で入れる（コーチが足すと自分の子ではないので間違えやすく、手間もかかるため。2026-10-26 ユーザー決定）。一覧の上に置いてスクロールさせない */}
+      <button onClick={onNew} className="mb-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-emerald-700 border border-dashed border-emerald-300 rounded-xl py-3 bg-white"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
       <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 mb-3 sticky top-[60px] z-10"><Search className="w-4 h-4 text-gray-400" /><input className="flex-1 py-2.5 text-base outline-none" value={q} onChange={(e) => setQ(e.target.value)} placeholder="名前や背番号で探す" /></label>
       <motion.div layout className="grid grid-cols-3 gap-2">
         {list.map((s) => (
@@ -59,8 +66,6 @@ function PickKid({ ctx, onPick, onNew }) {
         ))}
       </motion.div>
       {!list.length && <p className="text-center text-sm text-gray-400 py-8">見つかりません</p>}
-      {/* 名簿にいない子は保護者が自分で入れる（コーチが足すと自分の子ではないので間違えやすく、手間もかかるため。2026-10-26 ユーザー決定） */}
-      <button onClick={onNew} className="mt-5 w-full flex items-center justify-center gap-2 text-sm font-bold text-emerald-700 border border-dashed border-emerald-300 rounded-xl py-3"><UserPlus className="w-4 h-4" />名簿にいない（新しく入った）</button>
     </div>
   );
 }
@@ -102,7 +107,7 @@ function PhotoStep({ ctx, kid, back, onDone }) {
 // forRoster: 名簿画面から管理者・案内係が足すとき（自分の子として紐づけない）
 export function NewKid({ ctx, back, onDone, forRoster }) {
   const toast = useToast();
-  const [f, setF] = useState({ childName: '', kana: '', grade: '2年', jerseyNumber: '', photo: null });
+  const [f, setF] = useState({ childName: '', kana: '', jerseyNumber: '', photo: null });
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [scope, shake] = useShake();
@@ -120,7 +125,7 @@ export function NewKid({ ctx, back, onDone, forRoster }) {
     if (no && ctx.data.students.some((s) => String(s.jerseyNumber) === no)) { setErr(`背番号 ${no} はもう使われています`); return shake(); }
     setSaving(true);
     try {
-      await ctx.actions.registerKid({ ...f, childName: f.childName.trim(), kana: f.kana.trim(), jerseyNumber: no }, { link: !forRoster });
+      await ctx.actions.registerKid({ ...f, grade: teamGrade(ctx.data.students), childName: f.childName.trim(), kana: f.kana.trim(), jerseyNumber: no }, { link: !forRoster });
       toast(forRoster ? `${f.childName.trim()}さんを名簿に追加しました` : '登録しました');
       onDone();
     } catch (e) { console.error(e); setErr('保存できませんでした。もう一度お試しください'); setSaving(false); }
@@ -134,12 +139,8 @@ export function NewKid({ ctx, back, onDone, forRoster }) {
       <p className="text-sm text-gray-500 mb-4">{forRoster ? '保護者は、初めて開いたときにこの名簿からお子さんを選べます。名簿にいない子は、保護者が自分でも登録できます。' : '名簿にいないときだけ入力してください。入れた内容は、あとからコーチが直すこともできます。'}</p>
       <div ref={scope} className="space-y-3">
         <label className="block"><span className="text-xs text-gray-500">名前（漢字）</span><input className={input} value={f.childName} onChange={set('childName')} placeholder="例：佐藤 海斗" /></label>
-        <label className="block"><span className="text-xs text-gray-500">ふりがな</span><input className={input} value={f.kana} onChange={set('kana')} placeholder="例：かいと" /></label>
-        <div className={askNumber ? 'grid grid-cols-2 gap-2' : ''}>
-          <label className="block"><span className="text-xs text-gray-500">学年</span><select className={input} value={f.grade} onChange={set('grade')}>{GRADES.map((g) => <option key={g}>{g}</option>)}</select></label>
-          {askNumber && <label className="block"><span className="text-xs text-gray-500">背番号（未定なら空ける）</span><input className={input} inputMode="numeric" value={f.jerseyNumber} onChange={set('jerseyNumber')} placeholder="未定" /></label>}
-        </div>
-        {!askNumber && <p className="text-[11px] text-gray-500 -mt-1">背番号は、ユニフォームを買うときに空いている番号から選べます</p>}
+        <label className="block"><span className="text-xs text-gray-500">ふりがな</span><input className={input} value={f.kana} onChange={set('kana')} placeholder="例：さとう かいと" /></label>
+        {askNumber && <label className="block"><span className="text-xs text-gray-500">背番号（未定なら空ける）</span><input className={input} inputMode="numeric" value={f.jerseyNumber} onChange={set('jerseyNumber')} placeholder="未定" /></label>}
         <div><span className="text-xs text-gray-500">顔写真（みんなが顔と名前を早く覚えるため）</span><PhotoPicker value={f.photo} onChange={set('photo')} /></div>
       </div>
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
