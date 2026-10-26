@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
-import { Shirt, HeartHandshake, Send, Trash2, Plus, Check, Loader2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Shirt, HeartHandshake, Send, Trash2, Plus, Check, Loader2, ChevronDown } from 'lucide-react';
 import { Press, useToast, spring } from '../ui.jsx';
 import { bibsSettings, currentPractice, dateLabel, isLightHex, bibsFlex, kidName } from '../util.js';
 
@@ -11,9 +11,10 @@ import { bibsSettings, currentPractice, dateLabel, isLightHex, bibsFlex, kidName
 const Sw = ({ hex, round }) => <span className={`inline-block w-3.5 h-3.5 shrink-0 ${round ? 'rounded-full' : 'rounded'}`} style={{ background: hex }} />;
 const takesOf = (data, eventId) => (data.bibTakes || []).filter((t) => t.eventId === eventId);
 
-// 予定画面の上：今の練習で持ち帰った家族
+// 予定画面の上：今の練習で持ち帰った家族。名前がずっと見えていると恥ずかしいので、ふだんは閉じておく（押すと開く。2026-10-26 ユーザー指摘）
 export function BibsCard({ ctx, onOpen }) {
   const { data, students, myKid } = ctx;
+  const [open, setOpen] = useState(false);
   const ev = currentPractice(data.events);
   if (!ev) return null;
   const takes = takesOf(data, ev.id);
@@ -22,21 +23,35 @@ export function BibsCard({ ctx, onOpen }) {
   const { colors } = bibsSettings(data);
   const mine = myKid && takes.filter((t) => t.studentId === myKid.id);
   return (
-    <button type="button" onClick={() => onOpen(ev.id)} className="mx-3 mt-3 block w-[calc(100%-1.5rem)] text-left bg-white rounded-2xl border border-gray-100 p-3 space-y-2">
-      <div className="flex items-center"><p className="font-bold text-sm flex items-center gap-1.5 flex-1"><Shirt className="w-4 h-4 text-emerald-600" />ビブスを洗ってくれている家族</p><span className="text-[11px] text-gray-400">{dateLabel(ev.date)} 練習の分</span></div>
-      <div className="flex flex-wrap gap-1.5 text-xs">
-        {colors.map((c) => {
-          const who = takes.filter((t) => t.colorId === c.id).map((t) => kidName(students[t.studentId]));
-          if (!who.length && !asked) return null;
-          return (
-            <span key={c.id} className={`flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 ${who.length ? 'bg-gray-50' : 'bg-amber-50 text-amber-800 font-bold'}`}>
-              <Sw hex={c.hex} round />{c.name}：{who.length ? who.join('、') : '未報告'}
-            </span>
-          );
-        })}
-      </div>
-      {mine?.length > 0 && <p className="text-[12px] text-emerald-800">ありがとうございます。次の練習に持ってきてください</p>}
-    </button>
+    <div className="mx-3 mt-3 bg-white rounded-2xl border border-gray-100">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-1.5 px-3 py-2.5 text-left">
+        <Shirt className="w-4 h-4 text-emerald-600" />
+        <span className="font-bold text-sm flex-1">ビブスの持ち帰り</span>
+        <span className="text-[11px] text-gray-400">{dateLabel(ev.date)} 練習の分</span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden">
+            <div className="px-3 pb-3 space-y-2">
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {colors.map((c) => {
+                  const who = takes.filter((t) => t.colorId === c.id).map((t) => kidName(students[t.studentId]));
+                  if (!who.length && !asked) return null;
+                  return (
+                    <span key={c.id} className={`flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 ${who.length ? 'bg-gray-50' : 'bg-amber-50 text-amber-800 font-bold'}`}>
+                      <Sw hex={c.hex} round />{c.name}：{who.length ? who.join('、') : '未報告'}
+                    </span>
+                  );
+                })}
+              </div>
+              {mine?.length > 0 && <p className="text-[12px] text-emerald-800">ありがとうございます。次の練習に持ってきてください</p>}
+              <button type="button" onClick={() => onOpen(ev.id)} className="text-xs font-bold text-emerald-700">記録する・変える</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
