@@ -1,0 +1,23 @@
+name: ビブスの持ち帰りのお知らせ
+
+# line-schedule-bot の api/bibs-reminder.js を30分ごとに呼ぶ（練習が終わって1時間たったら、聞く担当の人に1対1で知らせる）。
+# Vercel の無料プランの cron は1日1回しか動かないため、この公開リポジトリの GitHub Actions（無料）で呼んでいる。
+# 日本時間 8:00〜22:30 だけ。GitHub の定期実行は数分〜十数分遅れることがある。
+on:
+  schedule:
+    - cron: '*/30 23 * * *'
+    - cron: '*/30 0-13 * * *'
+  workflow_dispatch:
+
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call bibs-reminder
+        env:
+          SECRET: ${{ secrets.BOT_CRON_SECRET }}
+        run: |
+          code=$(curl -s -o out.json -w '%{http_code}' -H "Authorization: Bearer $SECRET" https://line-schedule-bot-lilac.vercel.app/api/bibs-reminder)
+          cat out.json; echo; echo "HTTP $code"
+          test "$code" -lt 500
