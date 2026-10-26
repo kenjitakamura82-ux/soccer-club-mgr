@@ -84,7 +84,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
           <>
             <motion.span initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring} className="mx-auto w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center"><HeartHandshake className="w-8 h-8" /></motion.span>
             <p className="font-black text-lg">持ち帰り、ありがとうございます！</p>
-            <p className="text-sm text-gray-600">{thanked.name}のビブスを、{kidName(myKid)}の家族が{thanked.other ? '持っています' : '洗ってくれます'}</p>
+            <p className="text-sm text-gray-600">{thanked.other ? `洗いに出ていない残りのビブスは、${kidName(myKid)}の家族が持っています` : `${thanked.name}のビブスを、${kidName(myKid)}の家族が洗ってくれます`}</p>
             <p className="text-[11px] text-gray-400">次の練習に持ってきてください（{dateLabel(ev.date)} 練習の分）</p>
           </>
         ) : (
@@ -111,7 +111,7 @@ export function BibsView({ ctx, eventId, color, onDone }) {
         </div>
         {myKid && colors.some((c) => !takes.some((t) => t.colorId === c.id && t.studentId === myKid.id)) && (
           <>
-            <p className="text-xs text-gray-500">持ち帰った色を押すと記録できます（いくつでも。色が分からない残りは「その他」）</p>
+            <p className="text-xs text-gray-500">持ち帰った色を押すと記録できます（いくつでも。洗いに出ていない残りを持っている方は「その他」）</p>
             <div className="flex gap-1.5 flex-wrap">
               {colors.filter((c) => !takes.some((t) => t.colorId === c.id && t.studentId === myKid.id)).map((c) => (
                 <Press key={c.id} onClick={() => add(c)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${isLightHex(c.hex) ? 'text-gray-900' : 'text-white'}`} style={{ background: c.hex }}>＋ {c.name}</Press>
@@ -149,7 +149,7 @@ export function BibsSend({ ctx, eventId, onDone }) {
       <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4 space-y-2">
         <p className="text-[11px] font-bold text-emerald-600">ビブスの持ち帰り</p>
         <p className="font-bold">{dateLabel(ev.date)} {ev.title}</p>
-        <p className="text-[13px] text-gray-600">持ち帰った方は、色を押してください（いくつでも）。色が分からない残りは「その他」</p>
+        <p className="text-[13px] text-gray-600">持ち帰った方は、色を押してください（いくつでも）。洗いに出ていない残りを持っている方は「その他」</p>
         <div className="grid grid-cols-2 gap-1.5 text-sm font-bold text-center">
           {colors.map((c) => <span key={c.id} className={`rounded-lg py-2.5 ${isLightHex(c.hex) ? 'text-gray-900' : 'text-white'}`} style={{ background: c.hex }}>{c.name}</span>)}
         </div>
@@ -173,7 +173,7 @@ export function BibsSettings({ ctx, onAsk }) {
   const toggleAsker = (uid) => save({ askers: cur.askers.includes(uid) ? cur.askers.filter((x) => x !== uid) : [...cur.askers, uid] });
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3 text-sm">
-      <div><b>ビブスの設定</b><p className="text-xs text-gray-500 mt-0.5">買い足したり捨てたりしたら、ここで色を直してください。色が分からない残りのビブス用に「その他」がいつも最後に出ます。</p></div>
+      <div><b>ビブスの設定</b><p className="text-xs text-gray-500 mt-0.5">買い足したり捨てたりしたら、ここで色を直してください。洗いに出ていない残りのビブス用に「その他」がいつも最後に出ます。</p></div>
       <div className="rounded-xl border divide-y">
         {colors.map((c, i) => (
           <div key={c.id} className="flex items-center gap-2.5 p-2">
