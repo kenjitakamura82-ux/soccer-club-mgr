@@ -316,14 +316,17 @@ export function OnboardingSettings({ ctx, collapsible }) {
     toast('入会の設定を保存しました', 'これから支払いに進む家族から反映されます');
   };
   return (
-    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3 text-sm">
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-sm">
       {collapsible ? (
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-2 text-left">
           <span className="flex-1"><b>入会の設定</b><span className="block text-xs text-gray-500 mt-0.5">年会費・ユニフォーム代・全体LINEの招待リンク</span></span>
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       ) : <div><b>入会の設定</b><p className="text-xs text-gray-500 mt-0.5">新しく入った家族の「はじめての準備」で使う金額と、全体LINEの招待リンクです。</p></div>}
-      {open && <>
+      <AnimatePresence initial={false}>
+      {open && (
+        <motion.div initial={collapsible ? { height: 0, opacity: 0 } : false} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden">
+        <div className="space-y-3 pt-3">
       <div className="grid grid-cols-2 gap-2">
         <label className="block"><span className="text-xs text-gray-500">年会費（円）</span><input className={input} inputMode="numeric" value={f.annualFee} onChange={(e) => set('annualFee')(e.target.value.replace(/[^0-9]/g, ''))} /></label>
         <label className="block"><span className="text-xs text-gray-500">ユニフォーム代（円）</span><input className={input} inputMode="numeric" value={f.uniformPrice} onChange={(e) => set('uniformPrice')(e.target.value.replace(/[^0-9]/g, ''))} /></label>
@@ -333,7 +336,10 @@ export function OnboardingSettings({ ctx, collapsible }) {
       <label className="block"><span className="text-xs text-gray-500">全体LINEの招待リンク（グループの設定で作るリンク）</span><input className={input} value={f.inviteUrl} onChange={set('inviteUrl')} placeholder="https://line.me/R/ti/g/..." /></label>
       <p className="text-[11px] text-gray-500">招待リンクは、案内のカードから開く準備の画面の中だけに出します。</p>
       <Press onClick={save} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-2.5 font-bold"><Save className="w-4 h-4" />保存</Press>
-      </>}
+        </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
     </section>
   );
 }
