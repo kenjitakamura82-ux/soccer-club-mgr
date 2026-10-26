@@ -42,6 +42,10 @@ async function signInViaServer() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken: liff.getIDToken() }),
   });
+  if (res.status === 403) {
+    const b = await res.json().catch(() => ({}));
+    if (b.withdrawn) throw Object.assign(new Error('退会の手続きがされています'), { withdrawn: true, childName: b.childName });
+  }
   if (!res.ok) throw new Error(`ログインに失敗しました（${res.status}）`);
   const { token, member } = await res.json();
   const cred = await signInWithCustomToken(auth, token);
@@ -63,7 +67,7 @@ export async function connect() {
       if (`line_${liff.getDecodedIDToken()?.sub}` !== cached.uid) { await auth.signOut(); location.reload(); return; }
       await signInViaServer();
       mark('serverAuth');
-    }).catch((e) => console.error('background sign-in', e));
+    }).catch((e) => { if (e.withdrawn) { auth.signOut().then(() => location.reload()); return; } console.error('background sign-in', e); });
     return me;
   }
   timings.path = 'server';
@@ -185,6 +189,10 @@ export const actions = {
   // 入会の集金（年会費＋ユニフォーム代をまとめた個別の集金）。払う前なら、選び直しや金額の変更に合わせて作り直す
   saveJoinPayment: (studentId, { title, items, amount, baseAmount }) =>
     setDoc(pubDoc('payments', joinPaymentId(studentId)), { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true, setBy: me?.displayName || '', updatedAt: now() }, { merge: true }),
+
+  // 退会（2026-10-26 ユーザー決定）。消さずに印を付け、一覧から外す。背番号は空けて、元に戻すとき用に残す
+  withdrawKid: (s) => setDoc(pubDoc('students', s.id), { withdrawnAt: now(), jerseyBeforeWithdraw: s.jerseyNumber || '', jerseyNumber: '', updatedAt: now() }, { merge: true }),
+  restoreKid: (s, jerseyNumber) => setDoc(pubDoc('students', s.id), { withdrawnAt: deleteField(), jerseyBeforeWithdraw: deleteField(), jerseyNumber, updatedAt: now() }, { merge: true }),
 
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     const patch = { jerseyNumber: jerseyNumber || '', updatedAt: now() };

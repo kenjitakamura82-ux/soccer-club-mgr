@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, BarChart3, Shield, X, Loader2 } from 'lucide-react';
+import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, BarChart3, Shield, X, Loader2, HeartHandshake } from 'lucide-react';
 import { ToastProvider, Skeleton, OnboardingSkeleton, Avatar, useToast } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
@@ -29,10 +29,11 @@ export default function LiffApp() {
     let unsub = () => {};
     loadBackend()
       .then(async (b) => { await b.connect(); setBackend(b); unsub = b.subscribe(setData); })
-      .catch((e) => { console.error(e); setError(e.message || String(e)); });
+      .catch((e) => { console.error(e); setError(e.withdrawn ? e : e.message || String(e)); });
     return () => unsub();
   }, []);
 
+  if (error?.withdrawn) return <Withdrawn name={error.childName} />;
   if (error) return <Centered><p className="font-bold">開けませんでした</p><p className="text-sm text-gray-500 mt-1">{error}</p><p className="text-xs text-gray-400 mt-4">LINEのグループにあるリンクから開き直してください</p></Centered>;
   // 予定一覧も揃ってから出す（揃う前に出すと一瞬「予定はまだありません」が見えるため）
   if (!backend || !data?.me || !data.students || !data.events) return <Shell>{expectOnboarding() ? <OnboardingSkeleton /> : <Skeleton />}</Shell>;
@@ -77,6 +78,18 @@ function expectOnboarding() {
   try { return localStorage.getItem(ONBOARDING_FLAG) === '1'; } catch { return false; }
 }
 
+// 退会した子の家族に出す画面（予定・名簿・集金は見せない）
+function Withdrawn({ name, onClose }) {
+  return (
+    <Centered>
+      <span className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center mb-3"><HeartHandshake className="w-7 h-7" /></span>
+      <p className="font-bold">{name ? `${name}さんは、` : ''}退会の手続きがされています</p>
+      <p className="text-sm text-gray-500 mt-2">これまでありがとうございました。ご不明な点は、コーチにお問い合わせください。</p>
+      {onClose && <button onClick={onClose} className="mt-5 bg-emerald-600 text-white rounded-xl px-6 py-2.5 font-bold text-sm">LINEに戻る</button>}
+    </Centered>
+  );
+}
+
 function Centered({ children }) {
   return <div className="min-h-screen grid place-items-center p-8 text-center text-gray-700"><div>{children}</div></div>;
 }
@@ -93,7 +106,13 @@ function Shell({ children, right }) {
   );
 }
 
-function Main({ data, actions }) {
+function Main({ data: raw, actions }) {
+  // 退会した子（withdrawnAt あり）は、名簿・出欠・配車・集金などの一覧から外す。名簿の「退会した子」だけ withdrawnStudents を見る
+  const data = useMemo(() => {
+    const active = raw.students.filter((s) => !s.withdrawnAt);
+    const ids = new Set(active.map((s) => s.id));
+    return { ...raw, students: active, withdrawnStudents: raw.students.filter((s) => s.withdrawnAt), attendances: raw.attendances.filter((a) => ids.has(a.studentId)), rides: raw.rides.filter((r) => ids.has(r.studentId)) };
+  }, [raw]);
   const me = data.me;
   const roles = me.roles || [];
   const has = (r) => roles.includes(r);
@@ -137,6 +156,8 @@ function Main({ data, actions }) {
   useEffect(() => { if (!unsure) return; const t = setTimeout(() => setWaited(true), 5000); return () => clearTimeout(t); }, [unsure]);
   const showOnboarding = (fromInvite || ob?.started) && !ob?.done;
   useEffect(() => { onboardingFlag(showOnboarding); }, [showOnboarding]);
+  const myWithdrawn = me.studentId && !roles.length ? data.withdrawnStudents.find((s) => s.id === me.studentId) : null;
+  if (myWithdrawn) return <Withdrawn name={myWithdrawn.childName} onClose={() => actions.close()} />;
   if (unsure) return <Shell><OnboardingSkeleton /></Shell>;
   if (showOnboarding && !later) return <Shell><Onboarding ctx={ctx} onLater={() => setLater(true)} /></Shell>;
 

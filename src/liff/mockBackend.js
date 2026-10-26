@@ -137,6 +137,8 @@ export const actions = {
     upsert('students', studentId, { jerseyNumber: String(n) });
   },
   saveJoinPayment: async (studentId, { title, items, amount, baseAmount }) => upsert('payments', `join-${studentId}`, { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true }),
+  withdrawKid: async (s) => upsert('students', s.id, { withdrawnAt: new Date().toISOString(), jerseyBeforeWithdraw: s.jerseyNumber || '', jerseyNumber: '' }),
+  restoreKid: async (s, jerseyNumber) => { const { withdrawnAt: _w, jerseyBeforeWithdraw: _j, ...rest } = state.students.find((x) => x.id === s.id); upsert('students', s.id, { ...rest, jerseyNumber }, false); },
   async saveKid(studentId, { childName, jerseyNumber, photo }) {
     upsert('students', studentId, { jerseyNumber: jerseyNumber || '', ...(childName ? { childName } : {}) });
     if (photo) upsert('studentPhotos', studentId, { dataUrl: photo });

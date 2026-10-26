@@ -28,6 +28,11 @@ export default async function handler(req, res) {
 
   const data = snap.exists ? snap.data() : {};
   const roles = data.roles || [];
+  // 退会した子の家族（役割のない人）は入れない（2026-10-26 ユーザー決定）。アプリは退会の案内だけ出す
+  if (data.studentId && !roles.length) {
+    const st = await db.doc(`artifacts/${APP_ID}/public/data/students/${data.studentId}`).get();
+    if (st.exists && st.data().withdrawnAt) return res.status(403).json({ error: 'withdrawn', withdrawn: true, childName: st.data().childName || '' });
+  }
   const token = await auth.createCustomToken(uid, { member: true, roles });
   res.status(200).json({ token, member: { ...base, roles, studentId: data.studentId || null } });
 }

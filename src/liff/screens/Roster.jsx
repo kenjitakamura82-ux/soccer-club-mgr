@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Send, UserPlus } from 'lucide-react';
-import { Sheet, Press, Avatar, useShake, useToast, listVariants, itemVariants } from '../ui.jsx';
+import { Send, UserPlus, ChevronDown, UserMinus, Undo2 } from 'lucide-react';
+import { Sheet, Press, Avatar, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import { jersey, inviteFlex, canManageRoster } from '../util.js';
 import { PhotoPicker, NewKid } from './Register.jsx';
 import { NewFamilies, OnboardingSettings } from './Onboarding.jsx';
@@ -45,12 +45,48 @@ export default function Roster({ ctx }) {
           })}
         </motion.ul>
       </section>
+      {manage && <WithdrawnList ctx={ctx} />}
       <p className="text-xs text-gray-400 px-1">名前と背番号はコーチが登録・修正します。顔写真は保護者が登録します。</p>
       <KidEditSheet ctx={ctx} kid={edit} onClose={() => setEdit(null)} admin={manage} />
       <Sheet open={adding} onClose={() => setAdding(false)} title="子どもを名簿に追加">
         {adding && <NewKid ctx={ctx} forRoster onDone={() => setAdding(false)} />}
       </Sheet>
     </div>
+  );
+}
+
+// 退会した子（コーチ・管理者）。ふだんは閉じておく。元に戻すと名簿に戻り、家族もまた開けるようになる
+function WithdrawnList({ ctx }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const list = ctx.data.withdrawnStudents || [];
+  if (!list.length) return null;
+  const restore = async (s) => {
+    const n = s.jerseyBeforeWithdraw || '';
+    const taken = n && ctx.data.students.some((x) => String(x.jerseyNumber) === String(n));
+    await ctx.actions.restoreKid(s, taken ? '' : n);
+    toast(`${s.childName}さんを名簿に戻しました`, taken ? `背番号 ${n} はほかの子が使っているので、未定にしました` : undefined);
+  };
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+        <span className="flex-1 font-bold">退会した子 <span className="ml-1 text-gray-400 font-normal">{list.length}人</span></span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={spring} className="overflow-hidden divide-y divide-gray-100 border-t border-gray-100">
+            {list.map((s) => (
+              <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+                <Avatar student={s} photo={ctx.photos[s.id]} size={36} />
+                <span className="flex-1 min-w-0"><b className="block truncate text-gray-600">{s.childName}</b><span className="text-[11px] text-gray-400">{s.withdrawnAt ? `${new Date(s.withdrawnAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}に退会` : ''}</span></span>
+                <Press onClick={() => restore(s)} className="flex items-center gap-1 text-xs font-bold text-emerald-700 border border-emerald-200 rounded-full px-3 py-1.5"><Undo2 className="w-3.5 h-3.5" />元に戻す</Press>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </section>
   );
 }
 
@@ -73,6 +109,8 @@ function KidForm({ ctx, kid, onClose, admin }) {
   const [photo, setPhoto] = useState(null);
   const [err, setErr] = useState('');
   const [scope, shake] = useShake();
+  const [leaving, setLeaving] = useState(false);
+  const withdraw = async () => { await ctx.actions.withdrawKid(kid); toast(`${kid.childName}さんを退会にしました`, '名簿の下の「退会した子」から元に戻せます'); onClose(); };
   const input = 'w-full border border-gray-200 rounded-xl p-3 text-base outline-none focus:ring-2 focus:ring-emerald-500';
 
   const save = async () => {
@@ -97,6 +135,15 @@ function KidForm({ ctx, kid, onClose, admin }) {
       {admin && <p className="text-xs text-gray-500">背番号を変えても同じ子として扱うので、出欠や配車の記録はそのまま残ります。</p>}
       <AnimatePresence>{err && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{err}</motion.p>}</AnimatePresence>
       <Press onClick={save} className="w-full bg-emerald-600 text-white rounded-xl py-3 font-bold">保存</Press>
+      {admin && !kid.id.startsWith('coach_') && (leaving ? (
+        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-900">
+          <p className="font-bold">{kid.childName}さんを退会にしますか？</p>
+          <p className="text-xs mt-1">名簿・出欠・配車・集金の一覧から外れ、家族（父母とも）はアプリを開けなくなります。背番号は空きます。これまでの出欠や集金の記録は残り、あとで元に戻せます。全体LINEからは別に外してください。</p>
+          <div className="flex gap-2 mt-2"><Press onClick={withdraw} className="flex-1 bg-red-600 text-white rounded-lg py-2 font-bold">退会にする</Press><Press onClick={() => setLeaving(false)} className="flex-1 bg-white border border-red-200 rounded-lg py-2 font-bold">やめる</Press></div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setLeaving(true)} className="w-full flex items-center justify-center gap-1.5 text-sm font-bold text-red-600 py-2"><UserMinus className="w-4 h-4" />退会にする</button>
+      ))}
     </div>
   );
 }
