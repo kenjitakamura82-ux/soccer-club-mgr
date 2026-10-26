@@ -232,23 +232,35 @@ function PayStep({ ctx, onDone }) {
 }
 
 // コーチ・会計・案内係・管理者が見る「新しく入った家族」。誰がどこで止まっているかと、ユニフォームの注文まとめ
+const SHOW_DONE_DAYS = 14;
 export function NewFamilies({ ctx }) {
   const { data, students, photos } = ctx;
+  const toast = useToast();
+  const [resetting, setResetting] = useState(null);
+  const reset = async (m) => {
+    await ctx.actions.resetOnboarding(m.id, m.studentId);
+    setResetting(null);
+    toast('準備を最初からやり直せるようにしました', '案内のカードから開くと、もう一度準備の画面が出ます');
+  };
   const fams = (data.members || []).filter((m) => m.onboarding?.started).sort((a, b) => (b.onboarding.at || '').localeCompare(a.onboarding.at || ''));
-  if (!fams.length) return null;
+  // ずっと出ているとうっとおしいので、準備が終わった家族は終わってから2週間で消す（終わっていない家族は出し続ける。2026-10-26 ユーザー指摘）
+  const [cutoff] = useState(() => new Date(Date.now() - SHOW_DONE_DAYS * 86400000).toISOString());
   const rows = fams.map((m) => {
     const st = onboardingSteps(m, data);
     const kid = students[m.studentId];
     const pid = kid && joinPaymentId(kid.id);
     const ps = pid && data.paymentStatuses.find((x) => x.eventId === pid && x.studentId === kid.id);
-    return { m, st, kid, ps, n: STEPS.filter((s) => st[s.id]).length };
-  });
+    const n = STEPS.filter((s) => st[s.id]).length;
+    const doneAt = n === STEPS.length ? m.onboarding.doneAt || ps?.updatedAt || ps?.transferredAt || '' : null;
+    return { m, st, kid, ps, n, doneAt };
+  }).filter((r) => r.doneAt === null || r.doneAt >= cutoff);
+  if (!rows.length) return null;
   const orders = rows.filter((r) => r.m.onboarding.uniform?.buy && r.ps?.status === 'transferred');
   const bySize = orders.reduce((o, r) => ({ ...o, [r.m.onboarding.uniform.size]: (o[r.m.onboarding.uniform.size] || 0) + 1 }), {});
   const stuck = (st) => STEPS.find((s) => !st[s.id])?.title;
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-      <h3 className="font-bold">新しく入った家族</h3>
+      <div><h3 className="font-bold">新しく入った家族</h3><p className="text-[11px] text-gray-400">準備が終わった家族は、終わってから{SHOW_DONE_DAYS}日で消えます</p></div>
       {rows.map(({ m, st, kid, ps, n }) => {
         const u = m.onboarding.uniform;
         return (
@@ -264,6 +276,15 @@ export function NewFamilies({ ctx }) {
               {u ? (u.buy ? `背番号 ${u.number}・ユニフォーム ${u.size}` : 'ユニフォームは今は買わない') : 'ユニフォーム未回答'}
               {ps?.status === 'transferred' && (ps.isConfirmed ? (ps.method === 'card' ? '・カードで支払い済み' : '・支払い確認済み') : '・ことら送金 確認待ち')}
             </p>
+            {ctx.has('admin') && (resetting === m.id
+              ? (
+                <div className="mt-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700">
+                  <p className="font-bold">最初からやり直しますか？</p>
+                  <p className="mt-0.5">進み具合を消して、入会の集金を止めます。カードで払った分や会計が確認した支払いの記録は残します。背番号は名簿のまま残ります。</p>
+                  <div className="flex gap-2 mt-2"><Press onClick={() => reset(m)} className="flex-1 bg-red-600 text-white rounded-lg py-1.5 font-bold">やり直す</Press><Press onClick={() => setResetting(null)} className="flex-1 bg-white border border-red-200 rounded-lg py-1.5 font-bold">やめる</Press></div>
+                </div>
+              )
+              : <button onClick={() => setResetting(m.id)} className="mt-1 text-[11px] text-gray-400 underline">最初からやり直す（管理者）</button>)}
           </div>
         );
       })}

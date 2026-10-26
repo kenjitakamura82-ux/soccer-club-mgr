@@ -2,7 +2,7 @@ import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
 import { tagUrl, newSid, linkTag, joinPaymentId } from './util.js';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, runTransaction } from 'firebase/firestore';
 
 // src/App.jsx と同じプロジェクト・同じ appId。データは既存アプリと共有する
 const firebaseConfig = {
@@ -145,6 +145,17 @@ export const actions = {
 
   // はじめての準備の進み具合（members/{uid}.onboarding）。本人だけ書ける（firestore.rules）
   saveOnboarding: (patch) => updateDoc(memberDoc(me.uid), { onboarding: { ...(me.onboarding || {}), ...patch }, updatedAt: now() }),
+  // はじめての準備を最初からやり直す（管理者だけ。試しに通したあとなど）。進み具合を消し、入会の集金を止める。
+  // カードで払った・会計が確認した支払いの記録は消さない（お金が動いているため）。まだ確認していないことら送金の報告だけ消す
+  async resetOnboarding(uid, studentId) {
+    await updateDoc(memberDoc(uid), { onboarding: deleteField(), updatedAt: now() });
+    if (!studentId) return;
+    const pid = joinPaymentId(studentId);
+    const psRef = pubDoc('paymentStatuses', `${pid}_${studentId}`);
+    const ps = await getDoc(psRef);
+    if (ps.exists() && !ps.data().isConfirmed && ps.data().method !== 'card') await deleteDoc(psRef);
+    if (!ps.exists() || !ps.data().isConfirmed) await setDoc(pubDoc('payments', pid), { isActive: false, updatedAt: now() }, { merge: true });
+  },
   // 入会の設定（会計・案内係・管理者）
   saveOnboardingSettings: (fields) => setDoc(doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), { ...fields, updatedAt: now() }, { merge: true }),
   // 背番号を早い者勝ちで取る。番号ごとの印（jerseyNumbers/{番号}）をトランザクションで取り合い、先に取った子だけが通る。

@@ -4,20 +4,23 @@ import { Hand, Bell, CalendarClock, MessageCircleOff, Lock, Shuffle, Car, Chevro
 import { Press } from '../ui.jsx';
 
 // 予定の見かた（使い方）。はじめての準備の3つ目と、予定画面の「使い方」で開く（2026-10-26 ユーザー決定）。
-// 見本の上で指が動いて、押したらどうなるかを見せる。動きは CSS のアニメーション（6秒で1周）。見本は幅342pxの箱で、指の位置はその箱の中で決めている
+// 見本の上で指（丸）が動いて、押した瞬間だけ丸が緑に変わる（縮む動きは不自然なのでやめた。2026-10-26 ユーザー指摘）。動きは CSS のアニメーション（6秒で1周）。見本は幅342pxの箱で、指の位置はその箱の中で決めている
 const CSS = `
 .hw-A { animation-duration: 6s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-fill-mode: both; }
 .hw-finger { position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 99px; background: rgba(17,24,39,.18); border: 2px solid rgba(17,24,39,.35); pointer-events: none; z-index: 20; }
 .hw-toast { position: absolute; left: 6px; right: 6px; top: -8px; background: #111827; color: #fff; border-radius: 14px; padding: 9px 13px; font-size: 13px; z-index: 15; }
 @media (prefers-reduced-motion: reduce) { .hw-A { animation: none !important; } .hw-finger, .hw-toast { display: none; } }
-@keyframes hw-f1 { 0%,8% { transform: translate(120px, 150px); opacity: 0 } 18% { opacity: 1 } 30% { transform: translate(var(--x1), var(--y1)); } 33% { transform: translate(var(--x1), var(--y1)) scale(.8) } 36% { transform: translate(var(--x1), var(--y1)) scale(1) } 55% { transform: translate(var(--x1), var(--y1)); opacity: 1 } 65%,100% { transform: translate(300px, 160px); opacity: 0 } }
+@keyframes hw-f1 { 0%,8% { transform: translate(120px, 150px); opacity: 0 } 18% { opacity: 1 } 30% { transform: translate(var(--x1), var(--y1)); } 55% { transform: translate(var(--x1), var(--y1)); opacity: 1 } 65%,100% { transform: translate(300px, 160px); opacity: 0 } }
+@keyframes hw-tap1 { 0%,31% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 33%,37% { background: rgba(5,150,105,.55); border-color: #059669 } 41%,100% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } }
+@keyframes hw-tap2 { 0%,25% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 27%,31% { background: rgba(5,150,105,.55); border-color: #059669 } 35%,45% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 47%,51% { background: rgba(5,150,105,.55); border-color: #059669 } 55%,100% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } }
+@keyframes hw-tap4 { 0%,19% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 21%,25% { background: rgba(5,150,105,.55); border-color: #059669 } 29%,37% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 39%,43% { background: rgba(5,150,105,.55); border-color: #059669 } 47%,57% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } 59%,63% { background: rgba(5,150,105,.55); border-color: #059669 } 67%,100% { background: rgba(17,24,39,.18); border-color: rgba(17,24,39,.35) } }
 @keyframes hw-pill1 { 0%,33% { opacity: 0; transform: scale(.6) } 38%,92% { opacity: 1; transform: scale(1) } 100% { opacity: 0 } }
 @keyframes hw-txt1 { 0%,33% { color: #6b7280 } 38%,92% { color: #fff } 100% { color: #6b7280 } }
 @keyframes hw-dot1 { 0%,34% { opacity: 1; transform: scale(1) } 40%,92% { opacity: 0; transform: scale(0) } 100% { opacity: 1 } }
 @keyframes hw-bold1 { 0%,34% { opacity: 1 } 40%,92% { opacity: 0 } 100% { opacity: 1 } }
 @keyframes hw-thin1 { 0%,34% { opacity: 0 } 40%,92% { opacity: 1 } 100% { opacity: 0 } }
 @keyframes hw-toast1 { 0%,36% { transform: translateY(-30px); opacity: 0 } 42%,78% { transform: translateY(0); opacity: 1 } 86%,100% { transform: translateY(-30px); opacity: 0 } }
-@keyframes hw-f2 { 0%,6% { transform: translate(150px, 200px); opacity: 0 } 14% { opacity: 1 } 24% { transform: translate(var(--x1), var(--y1)) } 27% { transform: translate(var(--x1), var(--y1)) scale(.8) } 30% { transform: translate(var(--x1), var(--y1)) scale(1) } 44% { transform: translate(var(--x2), var(--y2)) } 47% { transform: translate(var(--x2), var(--y2)) scale(.8) } 50% { transform: translate(var(--x2), var(--y2)) scale(1) } 60%,100% { transform: translate(300px, 220px); opacity: 0 } }
+@keyframes hw-f2 { 0%,6% { transform: translate(150px, 200px); opacity: 0 } 14% { opacity: 1 } 24%,32% { transform: translate(var(--x1), var(--y1)) } 44%,52% { transform: translate(var(--x2), var(--y2)) } 60%,100% { transform: translate(300px, 220px); opacity: 0 } }
 @keyframes hw-conf2 { 0%,27% { opacity: 0; transform: translateY(-6px) scale(.95) } 32%,47% { opacity: 1; transform: none } 52%,100% { opacity: 0; transform: translateY(-6px) scale(.95) } }
 @keyframes hw-pill2 { 0%,48% { transform: translateX(0); background: #059669 } 54%,92% { transform: translateX(100%); background: #6b7280 } 100% { transform: translateX(0); background: #059669 } }
 @keyframes hw-tA2 { 0%,48% { color: #fff } 54%,92% { color: #6b7280 } 100% { color: #fff } }
@@ -26,7 +29,7 @@ const CSS = `
 @keyframes hw-done3 { 0%,40% { opacity: 0 } 46%,92% { opacity: 1 } 100% { opacity: 0 } }
 @keyframes hw-pop3 { 0%,44% { opacity: 0; transform: scale(.3) } 50%,92% { opacity: 1; transform: scale(1) } 100% { opacity: 0 } }
 @keyframes hw-box3 { 0%,42% { opacity: .35 } 46%,92% { opacity: 1 } 100% { opacity: .35 } }
-@keyframes hw-f4 { 0%,4% { transform: translate(150px, 260px); opacity: 0 } 10% { opacity: 1 } 18% { transform: translate(var(--x1), var(--y1)) } 21% { transform: translate(var(--x1), var(--y1)) scale(.8) } 24% { transform: translate(var(--x1), var(--y1)) scale(1) } 36% { transform: translate(var(--x2), var(--y2)) } 39% { transform: translate(var(--x2), var(--y2)) scale(.8) } 42% { transform: translate(var(--x2), var(--y2)) scale(1) } 56% { transform: translate(var(--x3), var(--y3)) } 59% { transform: translate(var(--x3), var(--y3)) scale(.8) } 62% { transform: translate(var(--x3), var(--y3)) scale(1) } 70%,100% { transform: translate(300px, 280px); opacity: 0 } }
+@keyframes hw-f4 { 0%,4% { transform: translate(150px, 260px); opacity: 0 } 10% { opacity: 1 } 18%,26% { transform: translate(var(--x1), var(--y1)) } 36%,44% { transform: translate(var(--x2), var(--y2)) } 56%,64% { transform: translate(var(--x3), var(--y3)) } 70%,100% { transform: translate(300px, 280px); opacity: 0 } }
 @keyframes hw-seg4 { 0%,21% { opacity: 0; transform: scale(.7) } 25%,94% { opacity: 1; transform: scale(1) } 100% { opacity: 0 } }
 @keyframes hw-segt4 { 0%,21% { color: #6b7280 } 25%,94% { color: #fff } 100% { color: #6b7280 } }
 @keyframes hw-open4 { 0%,22% { max-height: 0; opacity: 0 } 28%,94% { max-height: 80px; opacity: 1 } 100% { max-height: 0; opacity: 0 } }
@@ -60,9 +63,9 @@ function Page1({ day }) {
   return (
     <>
       <Head eyebrow="予定の一覧" title="押して答えるだけ" />
-      <Demo vars={{ '--x1': '209px', '--y1': '51px' }}>
+      <Demo vars={{ '--x1': '227px', '--y1': '48px' }}>
         <div {...layer('hw-toast1')} ><div className="hw-toast"><b>「参加」で答えました</b><span className="block text-[11px] text-gray-300">あとで変えても連絡は要りません</span></div></div>
-        <div {...layer('hw-f1')} ><span className="hw-finger" /></div>
+        <div {...layer('hw-f1')}><span className="hw-finger hw-A" style={{ animationName: 'hw-tap1' }} /></div>
         <Row circle={{ m: 11, d: 8, w: '日', cls: 'bg-orange-100 text-orange-900' }}
           title={<p className="relative truncate"><span {...an('hw-bold1')}><b>市リーグ 第5節</b></span><span className="hw-A absolute left-0 top-0" style={{ animationName: 'hw-thin1' }}>市リーグ 第5節</span></p>}
           time={<p className="text-xs font-bold flex items-center gap-1.5">08:40<span className="hw-A w-[9px] h-[9px] rounded-full bg-blue-600" style={{ animationName: 'hw-dot1' }} /></p>}
@@ -86,8 +89,8 @@ function Page2() {
   return (
     <>
       <Head eyebrow="出欠のルール" title="締切までなら変えられます" />
-      <Demo vars={{ '--x1': '268px', '--y1': '50px', '--x2': '135px', '--y2': '124px' }}>
-        <div {...layer('hw-f2')}><span className="hw-finger" /></div>
+      <Demo vars={{ '--x1': '275px', '--y1': '48px', '--x2': '143px', '--y2': '121px' }}>
+        <div {...layer('hw-f2')}><span className="hw-finger hw-A" style={{ animationName: 'hw-tap2' }} /></div>
         <Row circle={{ m: 11, d: 7, w: '土', cls: 'bg-green-100 text-green-900' }}
           title={<p className="truncate">練習</p>} time={<p className="text-xs text-gray-500">09:00</p>}
           sub="09:00〜11:00　柏の葉小" third={<p className="text-[13px] text-gray-500 truncate mt-1">締切 11/4(水)</p>}>
@@ -141,9 +144,9 @@ function Page4() {
   return (
     <>
       <Head eyebrow="配車（試合のとき）" title="試合会場へは、車を出し合って行きます" />
-      <Demo vars={{ '--x1': '38px', '--y1': '14px', '--x2': '98px', '--y2': '85px', '--x3': '133px', '--y3': '135px' }}>
+      <Demo vars={{ '--x1': '47px', '--y1': '13px', '--x2': '113px', '--y2': '83px', '--x3': '148px', '--y3': '133px' }}>
         <div {...layer('hw-toast4')}><div className="hw-toast"><b>配車の希望を保存しました</b><span className="block text-[11px] text-gray-300">配車担当のコーチにだけ届きます</span></div></div>
-        <div {...layer('hw-f4')}><span className="hw-finger" /></div>
+        <div {...layer('hw-f4')}><span className="hw-finger hw-A" style={{ animationName: 'hw-tap4' }} /></div>
         <div className="bg-white rounded-2xl p-3 space-y-3">
           <div className="relative grid grid-cols-3 gap-1 bg-gray-100 rounded-lg p-1 text-xs font-bold text-center">
             <span className="hw-A absolute top-1 bottom-1 left-1 w-[calc(33.3%-4px)] bg-emerald-600 rounded-md" style={{ animationName: 'hw-seg4' }} />

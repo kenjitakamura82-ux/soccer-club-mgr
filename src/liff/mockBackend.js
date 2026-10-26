@@ -116,6 +116,10 @@ export const actions = {
   },
   linkKid: async (studentId) => upsert('members', meId, { studentId }),
   saveOnboarding: async (patch) => { const m = state.members.find((x) => x.id === meId); upsert('members', meId, { onboarding: { ...(m.onboarding || {}), ...patch } }); },
+  resetOnboarding: async (uid, studentId) => {
+    const m = state.members.find((x) => x.id === uid); delete m.onboarding; upsert('members', uid, {});
+    if (studentId) { state.paymentStatuses = state.paymentStatuses.filter((x) => !(x.eventId === `join-${studentId}` && !x.isConfirmed)); upsert('payments', `join-${studentId}`, { isActive: false }); }
+  },
   saveOnboardingSettings: async (fields) => { state.onboardingSettings = { ...state.onboardingSettings, ...fields }; setTimeout(emit, 150); },
   claimJersey: async (studentId, n) => {
     const holder = state.jerseyNumbers[n];
