@@ -4,6 +4,7 @@ import { BookOpen, Info, Map, MapPin, Clock, Car, Users, FileText, Lock, Calenda
 import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, spring } from '../ui.jsx';
 import EventEditor from './EventEditor.jsx';
 import { BibsCard } from './Bibs.jsx';
+import { PlanSummary, PlanSheet, NotesCard } from './Practice.jsx';
 import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 // 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
@@ -16,6 +17,7 @@ export default function Home({ ctx, open }) {
   const unanswered = myKid ? events.filter((e) => !isCanceled(e) && !isClosed(e) && !att(e.id)).length : 0;
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [planning, setPlanning] = useState(null);
   const selectedEvent = data.events.find((e) => e.id === selected);
   const editor = canEditDeadline(ctx.has);
   const groups = [];
@@ -34,6 +36,7 @@ export default function Home({ ctx, open }) {
 
 
       <BibsCard ctx={ctx} onOpen={(id) => open(`bibsView:${id}:view`)} />
+      <NotesCard ctx={ctx} />
 
       {myKid && (
         <motion.p layout className={`mx-3 mt-3 text-[13px] rounded-xl px-3 py-2 font-bold ${unanswered ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
@@ -57,7 +60,7 @@ export default function Home({ ctx, open }) {
       </div>
 
       <Sheet open={!!selectedEvent} onClose={() => setSelected(null)} title={selectedEvent && `${dateLabel(selectedEvent.date)} ${selectedEvent.title}`}>
-        {selectedEvent && <EventDetail e={selectedEvent} ctx={ctx} open={open} onEdit={() => { setEditing(selectedEvent); setSelected(null); }} />}
+        {selectedEvent && <EventDetail e={selectedEvent} ctx={ctx} open={open} onEdit={() => { setEditing(selectedEvent); setSelected(null); }} onPlan={() => { setPlanning(selectedEvent.id); setSelected(null); }} />}
       </Sheet>
 
       {editor && (
@@ -68,6 +71,7 @@ export default function Home({ ctx, open }) {
         </motion.button>
       )}
       {editor && <EventEditor ctx={ctx} open={!!editing} event={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      <PlanSheet e={planning && data.events.find((x) => x.id === planning)} ctx={ctx} onClose={() => setPlanning(null)} />
     </div>
   );
 }
@@ -195,7 +199,7 @@ function DeadlineEditor({ e, ctx }) {
   );
 }
 
-function EventDetail({ e, ctx, open, onEdit }) {
+function EventDetail({ e, ctx, open, onEdit, onPlan }) {
   const { data, myKid, students, photos, has } = ctx;
   const status = myKid && data.attendances.find((a) => a.eventId === e.id && a.studentId === myKid.id)?.status;
   const attending = data.attendances.filter((a) => a.eventId === e.id && a.status === '参加').map((a) => students[a.studentId]).filter(Boolean);
@@ -236,6 +240,8 @@ function EventDetail({ e, ctx, open, onEdit }) {
             : <p className="text-gray-600">配車表が共有されています</p>}
         </section>
       )}
+
+      {e.type === '練習' && !isCanceled(e) && <PlanSummary e={e} ctx={ctx} onEdit={onPlan} />}
 
       {e.selection && <SelectionSection e={e} ctx={ctx} attending={attending} />}
 

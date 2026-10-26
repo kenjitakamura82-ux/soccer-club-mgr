@@ -73,6 +73,42 @@ export const isLightHex = (hex) => { const n = parseInt(String(hex).slice(1), 16
 export const currentPractice = (events) => events.filter((e) => e.type === '練習' && e.date && e.date <= todayJst() && !isCanceled(e)).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 export const isKashiwanohaEs = (e) => /柏の葉小/.test(e.location || '') || /柏の葉小/.test(e.title || '');
 
+// 練習メニュー（2026-10-26 ユーザー決定）。メニューは時間の区切り（blocks）の並び。fixed は「時間に合わせる」で長さを変えない区切り（集合・給水・振り返り）
+export const PLAN_TEMPLATE = [
+  { name: '集合・あいさつ', min: 5, fixed: true },
+  { name: 'ウォームアップ', min: 15 },
+  { name: '', min: 20 },
+  { name: '給水', min: 5, fixed: true },
+  { name: 'ミニゲーム', min: 30 },
+  { name: '振り返り・あいさつ', min: 10, fixed: true },
+];
+export const toMinutes = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+export const fromMinutes = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+// 予定の長さ（分）。終わりの時刻が無ければ2時間とみなす
+export const eventMinutes = (e) => { const s = toMinutes(startOf(e)), t = toMinutes(e.endTime); return s !== null && t !== null && t > s ? t - s : 120; };
+// 時間に合わせる：固定の区切りはそのまま、残りを元の長さの割合で配り直す（5分きざみ、最低5分）。端数は一番長い区切りで調整
+export const fitBlocks = (blocks, total) => {
+  const flex = blocks.filter((b) => !b.fixed);
+  if (!flex.length) return blocks;
+  const room = total - blocks.filter((b) => b.fixed).reduce((s, b) => s + b.min, 0);
+  const base = flex.reduce((s, b) => s + b.min, 0) || flex.length;
+  const out = blocks.map((b) => (b.fixed ? b : { ...b, min: Math.max(5, Math.round(((b.min || 1) / base) * room / 5) * 5) }));
+  let big = -1;
+  out.forEach((b, i) => { if (!b.fixed && (big < 0 || b.min > out[big].min)) big = i; });
+  out[big] = { ...out[big], min: Math.max(5, out[big].min + total - out.reduce((s, b) => s + b.min, 0)) };
+  return out;
+};
+export const planOf = (data, eventId) => (data.practicePlans || []).find((p) => p.id === eventId) || null;
+// 前回の流れ：この予定より前で、メニューが入っている一番新しい練習
+export const prevPlan = (data, e) => (data.practicePlans || []).filter((p) => p.date && p.date < e.date && p.blocks?.length).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+// 練習メニューを作る・振り返りを書くのはコーチと管理者
+export const canPlan = (has) => has('coach') || has('admin');
+// プレイのメモを書ける予定：練習・試合で、今日までの7日以内（新しい順の先頭）
+export const noteEvent = (events) => {
+  const t = todayJst(), from = addDays(t, -7);
+  return events.filter((e) => (e.type === '練習' || e.type === '試合') && !isCanceled(e) && e.date && e.date <= t && e.date >= from).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+};
+
 export const upcomingEvents = (events = [], days = 42) => {
   const t = todayJst();
   // 日本時間の日付どうしで足す（toISOString は世界時に直すので1日前になり、最後の日の予定が漏れていた）

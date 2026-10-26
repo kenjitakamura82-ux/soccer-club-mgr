@@ -39,6 +39,14 @@ const state = {
   ridePlans: [],
   selections: [],
   bibTakes: [],
+  practicePlans: [
+    { id: 'ev0', eventId: 'ev0', date: day(-2), purpose: 'パスを正確につなぐ', total: 120, review: { text: 'パスは良かった。ミニゲームになると、受けたあと下を向いてしまう', by: '小林コーチ' }, blocks: [
+      { id: 'b1', name: '集合・あいさつ', min: 5, note: '', fixed: true }, { id: 'b2', name: 'ウォームアップ', min: 15, note: 'ブラジル体操', fixed: false },
+      { id: 'b3', name: 'パス＆コントロール', min: 25, note: '2人1組・インサイド', fixed: false }, { id: 'b4', name: '給水', min: 5, note: '', fixed: true },
+      { id: 'b5', name: '2対1', min: 25, note: '数的有利を使う', fixed: false }, { id: 'b6', name: 'ミニゲーム', min: 35, note: '5人制', fixed: false },
+      { id: 'b7', name: '振り返り・あいさつ', min: 10, note: '', fixed: true }] },
+  ],
+  playerNotes: [],
   bibAsks: [],
   bibsSettings: {},
   settings: {},
@@ -74,6 +82,7 @@ let meId = 'u_parent';
 const emit = () => {
   const me = state.members.find((m) => m.id === meId);
   const snapshot = { ...structuredClone(state), me: { uid: meId, ...me } };
+  snapshot.playerNotes = snapshot.playerNotes.filter((n) => n.uid === meId);
   listeners.forEach((fn) => fn(snapshot));
 };
 const upsert = (col, id, data, merge = true) => {
@@ -137,6 +146,9 @@ export const actions = {
     upsert('students', studentId, { jerseyNumber: String(n) });
   },
   saveJoinPayment: async (studentId, { title, items, amount, baseAmount }) => upsert('payments', `join-${studentId}`, { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true }),
+  savePlan: async (e, { purpose, total, blocks, review }) => upsert('practicePlans', e.id, { eventId: e.id, date: e.date, purpose, total, blocks, review: review ? { text: review, by: 'me' } : null }),
+  addNote: async (n) => upsert('playerNotes', `n${Date.now()}`, { ...n, uid: meId, at: new Date().toISOString() }),
+  deleteNote: async (id) => { state.playerNotes = state.playerNotes.filter((n) => n.id !== id); setTimeout(emit, 100); },
   withdrawKid: async (s) => upsert('students', s.id, { withdrawnAt: new Date().toISOString(), jerseyBeforeWithdraw: s.jerseyNumber || '', jerseyNumber: '' }),
   restoreKid: async (s, jerseyNumber) => { const { withdrawnAt: _w, jerseyBeforeWithdraw: _j, ...rest } = state.students.find((x) => x.id === s.id); upsert('students', s.id, { ...rest, jerseyNumber }, false); },
   async saveKid(studentId, { childName, jerseyNumber, photo }) {

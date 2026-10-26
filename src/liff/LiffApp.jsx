@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, BarChart3, Shield, X, Loader2, HeartHandshake } from 'lucide-react';
+import { CalendarDays, Wallet, Contact, Car, ListChecks, Receipt, Shield, X, Loader2, HeartHandshake, ClipboardList } from 'lucide-react';
 import { ToastProvider, Skeleton, OnboardingSkeleton, Avatar, useToast } from './ui.jsx';
 import Home from './screens/Home.jsx';
 import Register from './screens/Register.jsx';
@@ -15,6 +15,8 @@ import Coach from './screens/Coach.jsx';
 import { MyPay, PayAdmin } from './screens/Pay.jsx';
 import Roster, { MyKidSheet } from './screens/Roster.jsx';
 import Roles from './screens/Roles.jsx';
+import PracticeTab from './screens/Practice.jsx';
+import { canPlan } from './util.js';
 
 // npm run dev で ?mock を付けたときだけ、本番データに触らない見本データで動かす
 const loadBackend = () =>
@@ -167,11 +169,11 @@ function Main({ data: raw, actions }) {
     { id: 'home', icon: CalendarDays, label: '予定' },
     myKid && { id: 'pay', icon: Wallet, label: '集金' },
     { id: 'roster', icon: Contact, label: '名簿' },
+    canPlan(has) && { id: 'practice', icon: ClipboardList, label: '練習' },
     has('select') && { id: 'select', icon: ListChecks, label: 'メンバー選出' },
     has('ride') && { id: 'coach', icon: Car, label: '配車まとめ' },
     has('pay') && { id: 'payadmin', icon: Receipt, label: '集金確認' },
     has('admin') && { id: 'roles', icon: Shield, label: '管理' },
-    has('admin') && { id: 'analytics', icon: BarChart3, label: '分析' },
   ].filter(Boolean);
   const current = tabs.some((t) => t.id === tab) ? tab : 'home';
   const open = (o) => setOverlay(o);
@@ -190,7 +192,7 @@ function Main({ data: raw, actions }) {
             {current === 'coach' && <Coach ctx={ctx} />}
             {current === 'payadmin' && <PayAdmin ctx={ctx} />}
             {current === 'roles' && <Roles ctx={ctx} open={open} />}
-            {current === 'analytics' && <Analytics ctx={ctx} />}
+            {current === 'practice' && <PracticeTab ctx={ctx} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -217,6 +219,7 @@ function Main({ data: raw, actions }) {
               {overlay.startsWith('bibsView:') && <BibsView ctx={ctx} eventId={overlay.split(':')[1]} color={overlay.split(':')[2]} onDone={() => setOverlay(null)} />}
               {overlay.startsWith('bibsSend:') && <BibsSend ctx={ctx} eventId={overlay.split(':')[1]} onDone={() => setOverlay(null)} />}
               {overlay === 'weekendSend' && <WeekendSend ctx={ctx} onDone={() => setOverlay(null)} />}
+              {overlay === 'analytics' && <Analytics ctx={ctx} />}
             </div>
           </motion.div>
         )}

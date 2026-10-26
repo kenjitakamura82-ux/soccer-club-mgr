@@ -48,6 +48,18 @@ service cloud.firestore {
       allow read: if hasRole('admin');
     }
 
+    // 練習メニュー（目的・時間割・振り返り）。読むのはメンバー、書くのはコーチと管理者
+    match /artifacts/{appId}/practicePlans/{eventId} {
+      allow read: if lineMember();
+      allow write: if hasRole('coach') || hasRole('admin');
+    }
+
+    // プレイのメモ。書いた本人だけが読み書きできる（ほかの人には、コーチにも管理者にも見せない。2026-10-26 ユーザー決定）
+    match /artifacts/{appId}/playerNotes/{id} {
+      allow create: if lineMember() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if lineMember() && resource.data.uid == request.auth.uid;
+    }
+
     // line-schedule-bot の作業用（サーバーの管理者権限で読み書きするので、アプリからは触らせない）
     match /lineScheduleBot/{rest=**} {
       allow read, write: if false;

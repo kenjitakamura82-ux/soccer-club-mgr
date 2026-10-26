@@ -2,7 +2,7 @@ import liff from '@line/liff';
 import { initializeApp } from 'firebase/app';
 import { tagUrl, newSid, linkTag, joinPaymentId } from './util.js';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, runTransaction } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, doc, setDoc, addDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, runTransaction, query, where } from 'firebase/firestore';
 
 // src/App.jsx と同じプロジェクト・同じ appId。データは既存アプリと共有する
 const firebaseConfig = {
@@ -105,6 +105,9 @@ export function subscribe(onData) {
   listen('onboardingSettings', doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), (s) => s.data() || {});
   listen('bibsSettings', doc(db, 'artifacts', APP_ID, 'settings', 'bibs'), (s) => s.data() || {});
   // 消した項目（やり直しで消した onboarding など）が前の値のまま残らないよう、毎回ドキュメントの中身で置き換える。fromCache＝端末に残した古いかもしれないデータ
+  // 練習メニュー（メンバーが読める）と、プレイのメモ（自分が書いたものだけ。ルールでも本人以外は読めない）
+  listen('practicePlans', collection(db, 'artifacts', APP_ID, 'practicePlans'));
+  listen('playerNotes', query(collection(db, 'artifacts', APP_ID, 'playerNotes'), where('uid', '==', me.uid)));
   listen('me', memberDoc(me.uid), (s) => { me = { uid: me.uid, ...s.data() }; return { ...me, fromCache: s.metadata.fromCache }; });
   return () => unsubs.forEach((u) => u());
 }
@@ -191,6 +194,16 @@ export const actions = {
     setDoc(pubDoc('payments', joinPaymentId(studentId)), { kind: 'custom', join: true, title, items, amount, baseAmount, targets: [studentId], isActive: true, setBy: me?.displayName || '', updatedAt: now() }, { merge: true }),
 
   // 退会（2026-10-26 ユーザー決定）。消さずに印を付け、一覧から外す。背番号は空けて、元に戻すとき用に残す
+  // 練習メニュー（コーチ・管理者）。振り返りも同じドキュメントに入れる
+  savePlan: (e, { purpose, total, blocks, review }) => setDoc(doc(db, 'artifacts', APP_ID, 'practicePlans', e.id), {
+    eventId: e.id, date: e.date, purpose, total, blocks,
+    review: review ? { text: review, by: me?.displayName || '', at: now() } : null,
+    by: me?.displayName || '', uid: me?.uid || '', updatedAt: now(),
+  }, { merge: true }),
+  // プレイのメモ。書いた本人にしか見えない（だれが書いたかは画面に出さない。uid は本人だけが読み消しするため）
+  addNote: ({ eventId, date, studentId, text }) => addDoc(collection(db, 'artifacts', APP_ID, 'playerNotes'), { eventId, date, studentId, text, uid: me.uid, at: now() }),
+  deleteNote: (id) => deleteDoc(doc(db, 'artifacts', APP_ID, 'playerNotes', id)),
+
   withdrawKid: (s) => setDoc(pubDoc('students', s.id), { withdrawnAt: now(), jerseyBeforeWithdraw: s.jerseyNumber || '', jerseyNumber: '', updatedAt: now() }, { merge: true }),
   restoreKid: (s, jerseyNumber) => setDoc(pubDoc('students', s.id), { withdrawnAt: deleteField(), jerseyBeforeWithdraw: deleteField(), jerseyNumber, updatedAt: now() }, { merge: true }),
 
