@@ -260,7 +260,7 @@ export function NewFamilies({ ctx }) {
   const stuck = (st) => STEPS.find((s) => !st[s.id])?.title;
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-      <div><h3 className="font-bold">新しく入った家族</h3><p className="text-[11px] text-gray-400">準備が終わった家族は、終わってから{SHOW_DONE_DAYS}日で消えます</p></div>
+      <div><h3 className="font-bold">新しく入った家族</h3><p className="text-[11px] text-gray-400">終わってから{SHOW_DONE_DAYS}日で消えます</p></div>
       {rows.map(({ m, st, kid, ps, n }) => {
         const u = m.onboarding.uniform;
         return (
