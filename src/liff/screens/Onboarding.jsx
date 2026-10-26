@@ -10,7 +10,7 @@ import HowTo from './HowTo.jsx';
 // 1 全体LINEに参加 → 2 お子さんの登録 → 3 予定の見かた → 4 ユニフォーム・背番号（早い者勝ち） → 5 支払い（年会費＋ユニフォーム代を1回で）
 const STEPS = [
   { id: 'line', title: '全体LINEに参加', sub: '連絡はこのグループに届きます' },
-  { id: 'kid', title: 'お子さんの登録', sub: '名前・学年・顔写真' },
+  { id: 'kid', title: 'お子さんの登録', sub: '名前・ふりがな・顔写真' },
   { id: 'guide', title: '予定の見かた', sub: '出欠の答え方・ルール・配車' },
   { id: 'uniform', title: 'ユニフォーム・背番号', sub: '買うかどうか選べます' },
   { id: 'pay', title: '支払い', sub: '年会費（ユニフォームを買うならその代金も）' },

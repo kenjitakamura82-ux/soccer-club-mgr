@@ -130,8 +130,14 @@ function Main({ data, actions }) {
   useEffect(() => {
     if (fromInvite && !ob?.started) actions.saveOnboarding({ started: true, at: new Date().toISOString() }).catch((e) => console.error(e));
   }, [fromInvite, ob?.started, actions]);
+  // 案内のカードから開いたのに、端末に残したデータでは「準備は終わった」になっているときは、サーバーの最新を待つ
+  // （やり直した直後に開くと、古いデータのまま予定の画面になっていた。2026-10-26 ユーザー指摘）。電波が悪いときのため5秒で諦める
+  const [waited, setWaited] = useState(false);
+  const unsure = fromInvite && ob?.done && me.fromCache && !waited;
+  useEffect(() => { if (!unsure) return; const t = setTimeout(() => setWaited(true), 5000); return () => clearTimeout(t); }, [unsure]);
   const showOnboarding = (fromInvite || ob?.started) && !ob?.done;
   useEffect(() => { onboardingFlag(showOnboarding); }, [showOnboarding]);
+  if (unsure) return <Shell><OnboardingSkeleton /></Shell>;
   if (showOnboarding && !later) return <Shell><Onboarding ctx={ctx} onLater={() => setLater(true)} /></Shell>;
 
   if (needsRegister) return <Shell><Register ctx={ctx} onDone={() => setOverlay('welcome')} /></Shell>;

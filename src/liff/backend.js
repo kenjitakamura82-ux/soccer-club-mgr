@@ -90,7 +90,7 @@ export function subscribe(onData) {
   const state = {};
   const unsubs = [];
   const listen = (key, ref, map = (s) => s.docs.map((d) => ({ id: d.id, ...d.data() }))) => {
-    unsubs.push(onSnapshot(ref, { includeMetadataChanges: key === 'events' }, (snap) => {
+    unsubs.push(onSnapshot(ref, { includeMetadataChanges: key === 'events' || key === 'me' }, (snap) => {
       if (key === 'events') mark(snap.metadata.fromCache ? 'eventsCache' : 'eventsServer');
       state[key] = map(snap); onData({ ...state });
     }, (e) => console.error(key, e)));
@@ -100,7 +100,8 @@ export function subscribe(onData) {
   listen('settings', doc(db, 'artifacts', APP_ID, 'settings', 'reminders'), (s) => s.data() || {});
   listen('onboardingSettings', doc(db, 'artifacts', APP_ID, 'settings', 'onboarding'), (s) => s.data() || {});
   listen('bibsSettings', doc(db, 'artifacts', APP_ID, 'settings', 'bibs'), (s) => s.data() || {});
-  listen('me', memberDoc(me.uid), (s) => { me = { ...me, ...s.data() }; return { uid: me.uid, ...me }; });
+  // 消した項目（やり直しで消した onboarding など）が前の値のまま残らないよう、毎回ドキュメントの中身で置き換える。fromCache＝端末に残した古いかもしれないデータ
+  listen('me', memberDoc(me.uid), (s) => { me = { uid: me.uid, ...s.data() }; return { ...me, fromCache: s.metadata.fromCache }; });
   return () => unsubs.forEach((u) => u());
 }
 
