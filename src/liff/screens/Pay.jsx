@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock, Wallet, Plus, Send, Pencil, CreditCard, Search, Check, Calculator } from 'lucide-react';
+import { BadgeCheck, Clock, Wallet, Plus, Send, Pencil, CreditCard, Search, Check, Calculator } from 'lucide-react';
 import { Press, Avatar, DrawCheck, Sheet, Segmented, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import { OnboardingSettings } from './Onboarding.jsx';
 import { dateLabel, jersey, isCanceled, todayJst, addDays, payTargets, announce, paymentEvent, withCardFee, CARD_FEE_RATE, feeBreakdown, STRIPE_FEE_NOTE } from '../util.js';
@@ -85,8 +85,31 @@ export function PayAdmin({ ctx }) {
   const [editing, setEditing] = useState(null);
   const [refunding, setRefunding] = useState(null);
   const list = activePayments(data);
+  const [deciding, setDeciding] = useState(null);
+  const [busy, setBusy] = useState(false);
+  // 開催決定して、そのまま全体LINEに知らせる。決めると保護者が払えるようになる
+  const decide = async () => {
+    setBusy(true);
+    try {
+      await ctx.actions.confirmEvent(deciding.event.id);
+      toast('開催決定にしました');
+      const p = deciding;
+      setDeciding(null);
+      await announce(ctx, toast, { ...p, event: { ...p.event, confirmed: true } }, true);
+    } catch (err) { toast('保存できませんでした', err.message); }
+    setBusy(false);
+  };
   return (
     <div className="p-3 space-y-4">
+      <Sheet open={!!deciding} onClose={() => setDeciding(null)} title="開催決定">
+        {deciding && (
+          <div className="space-y-3 text-sm">
+            <p>{payLabel(deciding)} を開催決定にして、全体LINEに知らせますか？ 決めると、保護者が集金を払えるようになります。</p>
+            <Press onClick={decide} disabled={busy} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold disabled:opacity-60"><BadgeCheck className="w-4 h-4" />{busy ? '保存しています…' : '開催決定して知らせる'}</Press>
+            <button onClick={() => setDeciding(null)} className="w-full text-sm text-gray-500 py-2">やめる</button>
+          </div>
+        )}
+      </Sheet>
       <Sheet open={!!refunding} onClose={() => setRefunding(null)} title="返金する">
         {refunding && <RefundConfirm ctx={ctx} target={refunding} onDone={() => setRefunding(null)} />}
       </Sheet>
@@ -113,7 +136,11 @@ export function PayAdmin({ ctx }) {
             <p className="text-xs text-gray-500">{payLabel(p)}</p>
             <p className="font-bold">{payTitle(p)}{p.amount ? ` ${yen(p.amount)}` : ''}</p>
             <div className="flex gap-2 mt-2">
-              <Press onClick={() => announce(ctx, toast, p)} className="flex-1 flex items-center justify-center gap-1.5 bg-[#06c755] text-white rounded-lg py-2 text-xs font-bold"><Send className="w-3.5 h-3.5" />{p.kind === 'custom' ? '対象の家族に知らせる' : '全体LINEに知らせる'}</Press>
+              {blockedOf(p) === '中止になりました'
+                ? <p className="flex-1 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg py-2 text-xs font-bold">中止になりました</p>
+                : blockedOf(p)
+                  ? <Press onClick={() => setDeciding(p)} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 text-white rounded-lg py-2 text-xs font-bold"><BadgeCheck className="w-3.5 h-3.5" />開催決定して知らせる</Press>
+                  : <Press onClick={() => announce(ctx, toast, p, !!(p.needsConfirm && p.event?.confirmed))} className="flex-1 flex items-center justify-center gap-1.5 bg-[#06c755] text-white rounded-lg py-2 text-xs font-bold"><Send className="w-3.5 h-3.5" />{p.kind === 'custom' ? '対象の家族に知らせる' : '全体LINEに知らせる'}</Press>}
               <Press onClick={() => setEditing({ event: p.event, payment: p })} className="flex items-center justify-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700"><Pencil className="w-3.5 h-3.5" />直す</Press>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center my-3">
@@ -213,7 +240,7 @@ function PayForm({ ctx, initial, onDone }) {
       if (kind === 'event') {
         const fields = { description: title.trim(), amount: amount ? Number(amount) : null, baseAmount: feeBase || null, isActive: true, ...(ctx.data.payments.some((x) => x.id === event.id) ? {} : { needsConfirm: true }) };
         await ctx.actions.savePayment(event.id, fields, ctx.myName);
-        p = { ...fields, id: event.id, eventId: event.id, event };
+        p = { ...fields, id: event.id, eventId: event.id, event, needsConfirm: fields.needsConfirm || ctx.data.payments.find((x) => x.id === event.id)?.needsConfirm };
       } else {
         const fields = { title: title.trim(), amount: Number(amount), baseAmount: feeBase || null, targets: [...targets], isActive: true };
         const id = await ctx.actions.saveCustomPayment(editingPay?.id || null, fields, ctx.myName);
@@ -234,9 +261,14 @@ function PayForm({ ctx, initial, onDone }) {
     <div className="space-y-3 text-center py-2">
       <DrawCheck size={48} />
       <p className="font-bold">{saved.kind === 'custom' ? `「${saved.title}」` : `${dateLabel(saved.event.date)} ${saved.event.title} `}の集金を設定しました</p>
-      <p className="text-sm text-gray-500">{saved.kind === 'custom' ? '対象の家族に知らせますか？' : '全体LINEに知らせますか？'} 送り先を選ぶ画面が出ます。</p>
-      <Press onClick={async () => { await announce(ctx, toast, saved); onDone(); }} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-3 font-bold"><Send className="w-4 h-4" />知らせる</Press>
-      <button onClick={onDone} className="w-full text-sm text-gray-500 py-2">あとで知らせる</button>
+      {blockedOf(saved) ? (<>
+        <p className="text-sm text-gray-500">開催が決まるまで、保護者はまだ払えません。決まったら、この集金の「開催決定して知らせる」を押してください。</p>
+        <Press onClick={onDone} className="w-full rounded-xl py-3 font-bold border border-gray-200 text-gray-700">閉じる</Press>
+      </>) : (<>
+        <p className="text-sm text-gray-500">{saved.kind === 'custom' ? '対象の家族に知らせますか？' : '全体LINEに知らせますか？'} 送り先を選ぶ画面が出ます。</p>
+        <Press onClick={async () => { await announce(ctx, toast, saved); onDone(); }} className="w-full flex items-center justify-center gap-2 bg-[#06c755] text-white rounded-xl py-3 font-bold"><Send className="w-4 h-4" />知らせる</Press>
+        <button onClick={onDone} className="w-full text-sm text-gray-500 py-2">あとで知らせる</button>
+      </>)}
     </div>
   );
 

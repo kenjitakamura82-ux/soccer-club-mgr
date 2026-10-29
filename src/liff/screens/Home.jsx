@@ -5,7 +5,7 @@ import { Sheet, Press, Segmented, Stepper, Avatar, useToast, listVariants, sprin
 import EventEditor from './EventEditor.jsx';
 import { BibsCard } from './Bibs.jsx';
 import { PlanSummary, PlanSheet, NotesCard } from './Practice.jsx';
-import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline, canConfirmEvent, payTargets, announce } from '../util.js';
+import { upcomingEvents, md, groupLabel, dateLabel, timeLabel, startOf, needsRide, selectionOf, inRide, isCanceled, isKashiwanohaEs, kidName, deadlineOf, defaultDeadline, isClosed, canEditDeadline } from '../util.js';
 
 // 日付の丸の色：練習＝緑、試合＝オレンジ、その他＝青、中止＝灰色
 const typeStyle = (e) => isCanceled(e) ? 'bg-gray-200 text-gray-500' : e.type === '試合' ? 'bg-orange-100 text-orange-900' : e.type === '練習' ? 'bg-green-100 text-green-900' : 'bg-blue-100 text-blue-900';
@@ -199,41 +199,6 @@ function DeadlineEditor({ e, ctx }) {
   );
 }
 
-// 開催決定。押すと、この予定の集金（開催決定を待つ設定のもの）が払えるようになる。決めたあとに集金のお知らせを送れる
-function ConfirmCard({ e, ctx }) {
-  const toast = useToast();
-  const [ask, setAsk] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const pay = ctx.data.payments.find((p) => p.id === e.id && p.isActive && p.kind !== 'custom');
-  const go = async () => {
-    setBusy(true);
-    try { await ctx.actions.confirmEvent(e.id); toast('開催決定にしました'); setAsk(false); } catch (err) { toast('保存できませんでした', err.message); }
-    setBusy(false);
-  };
-  const send = () => announce(ctx, toast, { ...pay, event: e, targets: payTargets({ ...pay, event: e }, ctx.data) }, true);
-  if (e.confirmed) return (
-    <section className="bg-emerald-50 rounded-2xl p-3 space-y-2">
-      <h4 className="font-bold text-xs text-emerald-700 flex items-center gap-1"><BadgeCheck className="w-4 h-4" />開催決定</h4>
-      {pay
-        ? <Press onClick={send} className="w-full flex items-center justify-center gap-1.5 bg-[#06c755] text-white rounded-xl py-2.5 text-sm font-bold"><Send className="w-4 h-4" />集金のお知らせを送る</Press>
-        : <p className="text-xs text-gray-600">集金を設定すると、ここから知らせられます。</p>}
-    </section>
-  );
-  return (
-    <section className="bg-gray-50 rounded-2xl p-3 space-y-2">
-      {!ask
-        ? <Press onClick={() => setAsk(true)} className="w-full flex items-center justify-center gap-1.5 border border-emerald-600 text-emerald-700 rounded-xl py-2.5 text-sm font-bold bg-white"><BadgeCheck className="w-4 h-4" />開催決定</Press>
-        : (
-          <>
-            <p className="text-sm">この予定を開催決定にしますか？ 決めると、保護者が集金を払えるようになります。</p>
-            <Press onClick={go} disabled={busy} className="w-full bg-emerald-600 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-60">{busy ? '保存しています…' : '開催決定にする'}</Press>
-            <button onClick={() => setAsk(false)} className="w-full text-sm text-gray-500 py-1">やめる</button>
-          </>
-        )}
-    </section>
-  );
-}
-
 function EventDetail({ e, ctx, open, onEdit, onPlan }) {
   const { data, myKid, students, photos, has } = ctx;
   const status = myKid && data.attendances.find((a) => a.eventId === e.id && a.studentId === myKid.id)?.status;
@@ -266,7 +231,6 @@ function EventDetail({ e, ctx, open, onEdit, onPlan }) {
         <Press onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-700 bg-white"><Pencil className="w-4 h-4" />予定を直す・中止・削除</Press>
       )}
       {!isCanceled(e) && canEditDeadline(has) && <DeadlineEditor key={deadlineOf(e)} e={e} ctx={ctx} />}
-      {!isCanceled(e) && canConfirmEvent(has) && <ConfirmCard e={e} ctx={ctx} />}
 
       {plan && (
         <section className="bg-emerald-50 rounded-2xl p-3">
