@@ -301,17 +301,20 @@ export async function announce(ctx, toast, p, decided = false) {
   } catch (e) { toast('送れませんでした', e.message); }
 }
 
+// 年末年始（12/29〜1/3）は祝日でなくても祝日と同じに扱う（2026-10-30 ユーザー決定）
+const isNewYear = (s) => s.slice(5) >= '12-29' || s.slice(5) <= '01-03';
+
 // 今週末（次の土日）と、来週の同じ曜日（次のリマインド）までの祝日の日付。土日が先頭。line-schedule-bot の api/weekend-reminder.js の weekendDates と同じ
 // holidays は @holiday-jp/holiday_jp の holidays（大きいので使う画面で読み込んで渡す）
 export const weekendDates = (holidays = {}) => {
   const t = todayJst();
   const sat = addDays(t, (6 - parseDate(t).getDay() + 7) % 7);
-  const extra = [1, 2, 3, 4, 5, 6].map((n) => addDays(t, n)).filter((s) => holidays[s]);
+  const extra = [1, 2, 3, 4, 5, 6].map((n) => addDays(t, n)).filter((s) => holidays[s] || isNewYear(s));
   return [...new Set([sat, addDays(sat, 1), ...extra])];
 };
 
 // 土日だけなら「今週末」、祝日の予定も入っていれば「今週末と祝日」
-export const weekendTitle = (events) => (events.every((e) => [0, 6].includes(parseDate(e.date).getDay())) ? '今週末' : '今週末と祝日');
+export const weekendTitle = (events) => (events.every((e) => [0, 6].includes(parseDate(e.date).getDay())) ? '今週末' : events.some((e) => isNewYear(e.date)) ? '今週末と年末年始' : '今週末と祝日');
 
 // 週末リマインドのカード。line-schedule-bot の api/weekend-reminder.js の buildFlex と同じ見た目（どちらかを変えたらもう片方も直す）。
 // 担当の人に頼む送り方のときは、担当の人がこのカードを「人を選んで送る」で全体LINEに送る
