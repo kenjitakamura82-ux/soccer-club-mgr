@@ -155,7 +155,8 @@ export const actions = {
     upsert('students', studentId, { jerseyNumber: jerseyNumber || '', ...(childName ? { childName } : {}) });
     if (photo) upsert('studentPhotos', studentId, { dataUrl: photo });
   },
-  savePayment: async (eventId, { description, amount, isActive, baseAmount = null }) => upsert('payments', eventId, { eventId, description, amount: amount ? Number(amount) : null, baseAmount, isActive }),
+  savePayment: async (eventId, { description, amount, isActive, baseAmount = null, needsConfirm }) => upsert('payments', eventId, { eventId, description, amount: amount ? Number(amount) : null, baseAmount, isActive, ...(needsConfirm ? { needsConfirm: true } : {}) }),
+  confirmEvent: async (eventId) => upsert('events', eventId, { confirmed: true, confirmedAt: new Date().toISOString(), confirmedBy: state.members.find((m) => m.id === meId)?.displayName || '' }),
   // 見本：Stripe には行かず、少しして確認済みになる
   startCardPay: async (eventId) => { const sid = state.members.find((m) => m.id === meId)?.studentId; setTimeout(() => upsert('paymentStatuses', `${eventId}_${sid}`, { eventId, studentId: sid, status: 'transferred', method: 'card', isConfirmed: true, confirmedBy: 'カード決済', stripeSessionId: 'cs_test_mock' }), 800); },
   saveCustomPayment: async (id, fields) => { const pid = id || `custom-${Math.random().toString(36).slice(2, 8)}`; upsert('payments', pid, { ...fields, kind: 'custom', ...(id ? {} : { createdAt: new Date().toISOString() }) }); return pid; },

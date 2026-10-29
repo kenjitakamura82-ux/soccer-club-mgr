@@ -139,6 +139,9 @@ export const canManageRoster = (has) => has('coach') || has('admin');
 // 締切を変えられるのは役割を持つコーチ（配車担当・案内係）と管理者
 export const canEditDeadline = (has) => has('ride') || has('guide') || has('admin');
 
+// 開催決定を押せるのは、予定を直せる人と集金の担当（開催決定のあとに集金が払えるようになる）
+export const canConfirmEvent = (has) => canEditDeadline(has) || has('pay');
+
 export const jersey = (s) => (s?.jerseyNumber ? Number(s.jerseyNumber) : 999);
 export const kidName = (s) => s?.childName || '不明';
 
@@ -261,7 +264,7 @@ export function entryFlex(liffUrl, day = '金') {
 }
 
 // 集金のお知らせ。会計の人が「人を選んで送る」で全体LINEに送る（本人が送る形なので公式アカウントの通数は使わない見込み）
-export function payFlex(event, payment, liffUrl) {
+export function payFlex(event, payment, liffUrl, decided = false) {
   const yen = payment.amount ? `¥${Number(payment.amount).toLocaleString()}` : '';
   const tap = { action: { type: 'uri', label: '開く', uri: liffUrl } };
   // 個別の集金（入会費など）は予定が無いので、集金の名前を見出しにする
@@ -269,11 +272,11 @@ export function payFlex(event, payment, liffUrl) {
   const what = event ? payment.description || '集金' : '対象のご家族へのお知らせです';
   return {
     type: 'flex',
-    altText: `集金のお知らせ：${head}${yen ? ` ${yen}` : ''}`,
+    altText: `${decided ? '開催が決まりました。集金が払えます' : '集金のお知らせ'}：${head}${yen ? ` ${yen}` : ''}`,
     contents: {
       type: 'bubble',
       body: { type: 'box', layout: 'vertical', spacing: 'sm', ...tap, contents: [
-        { type: 'text', text: '集金のお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
+        { type: 'text', text: decided ? '開催が決まりました' : '集金のお知らせ', size: 'xs', color: '#059669', weight: 'bold' },
         { type: 'text', text: head, weight: 'bold', size: 'md', wrap: true },
         { type: 'text', text: what, size: 'sm', color: '#555555', wrap: true },
         ...(yen ? [{ type: 'text', text: yen, size: 'xxl', weight: 'bold', margin: 'md' }] : []),
@@ -281,13 +284,21 @@ export function payFlex(event, payment, liffUrl) {
           { type: 'text', text: `（${feeBreakdown(payment).base.toLocaleString()}円＋決済手数料 ${feeBreakdown(payment).fee.toLocaleString()}円）`, size: 'xs', color: '#555555', wrap: true },
           { type: 'text', text: STRIPE_FEE_NOTE, size: 'xs', color: '#888888', wrap: true },
         ] : []),
-        { type: 'text', text: 'アプリの「集金」から、カード・Apple Pay で払えます。ことら送金をしたら「ことら送金した」を押してください。', size: 'xs', color: '#888888', wrap: true, margin: 'md' },
+        { type: 'text', text: `${decided ? '開催が決まったので、集金が払えるようになりました。' : ''}アプリの「集金」から、カード・Apple Pay で払えます。ことら送金をしたら「ことら送金した」を押してください。`, size: 'xs', color: '#888888', wrap: true, margin: 'md' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
         { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'uri', label: 'アプリで確認する', uri: liffUrl } },
       ] },
     },
   };
+}
+
+// 集金を知らせるカードを送る（会計の人が送り先を選ぶ。予定の集金は全体LINE、個別の集金は対象の家族に送る想定）
+export async function announce(ctx, toast, p, decided = false) {
+  try {
+    const r = await ctx.actions.share('pay', (url) => payFlex(p.event, p, url, decided), { eventId: p.eventId || p.id, targets: payTargets(p, ctx.data) });
+    if (r) toast('集金のお知らせを送りました');
+  } catch (e) { toast('送れませんでした', e.message); }
 }
 
 // 今週末（次の土日）の日付。line-schedule-bot の api/weekend-reminder.js の weekendDates と同じ

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Clock, Wallet, Plus, Send, Pencil, CreditCard, Search, Check, Calculator } from 'lucide-react';
 import { Press, Avatar, DrawCheck, Sheet, Segmented, useShake, useToast, listVariants, itemVariants, spring } from '../ui.jsx';
 import { OnboardingSettings } from './Onboarding.jsx';
-import { dateLabel, jersey, isCanceled, todayJst, addDays, payFlex, payTargets, paymentEvent, withCardFee, CARD_FEE_RATE, feeBreakdown, STRIPE_FEE_NOTE } from '../util.js';
+import { dateLabel, jersey, isCanceled, todayJst, addDays, payTargets, announce, paymentEvent, withCardFee, CARD_FEE_RATE, feeBreakdown, STRIPE_FEE_NOTE } from '../util.js';
 
 // 有効な集金。予定の集金（payments/{予定のID}）と、個別の集金（kind: 'custom'。入会費・ユニフォーム代など、予定にひも付かない）
 const activePayments = (data) => data.payments
@@ -18,6 +18,9 @@ const payLabel = (p) => (p.kind === 'custom' ? '個別の集金' : `${dateLabel(
 // カード・Apple Pay 払い（Stripe）は Vercel の環境変数 VITE_CARD_PAY=on で出す（開発の見本データでは常に出す）
 const CARD_PAY = import.meta.env.VITE_CARD_PAY === 'on' || (import.meta.env.DEV && new URLSearchParams(location.search).has('mock'));
 const CARD = 'カード・Apple Pay';
+
+// 予定の集金が今は払えない理由。中止、または開催決定の待ち（needsConfirm の付いた集金のみ。古い集金は今までどおり払える）
+const blockedOf = (p) => (p.kind === 'custom' || !p.event ? '' : isCanceled(p.event) ? '中止になりました' : p.needsConfirm && !p.event.confirmed ? '開催が決まったら払えます' : '');
 
 const statusOf = (ps) => ps?.status === 'refunded' ? 'refunded' : !ps || ps.status !== 'transferred' ? 'todo' : ps.isConfirmed ? 'done' : 'wait';
 const yen = (n) => `¥${Number(n).toLocaleString()}`;
@@ -40,6 +43,7 @@ export function MyPay({ ctx }) {
         const key = payKey(p);
         const ps = data.paymentStatuses.find((x) => x.eventId === key && x.studentId === myKid.id);
         const st = statusOf(ps);
+        const blocked = blockedOf(p);
         return (
           <motion.section key={p.id} variants={itemVariants} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <p className="text-xs text-gray-500">{payLabel(p)}</p>
@@ -54,7 +58,8 @@ export function MyPay({ ctx }) {
             <div className="mt-3 min-h-[52px] grid place-items-center">
               <AnimatePresence mode="wait">
                 <motion.div key={st} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }} transition={spring} className="w-full grid place-items-center">
-                  {st === 'todo' && (
+                  {st === 'todo' && blocked && <span className="inline-flex items-center gap-2 bg-gray-100 text-gray-600 rounded-full px-4 py-2 font-bold text-sm">{blocked}</span>}
+                  {st === 'todo' && !blocked && (
                     <div className="w-full space-y-2">
                       {CARD_PAY && p.amount > 0 && <Press onClick={() => card(key)} disabled={opening === key} className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white rounded-xl py-3 font-bold disabled:opacity-60"><CreditCard className="w-4 h-4" />{opening === key ? '支払い画面を開いています…' : `${CARD}で払う`}</Press>}
                       <Press onClick={async () => { await actions.reportTransfer(key, myKid.id, myName); toast('会計に報告しました', '確認されると「確認済み」になります'); }} className={`w-full rounded-xl py-3 font-bold ${CARD_PAY && p.amount > 0 ? 'bg-white border border-gray-200 text-gray-700' : 'bg-emerald-600 text-white'}`}>ことら送金した</Press>
@@ -72,14 +77,6 @@ export function MyPay({ ctx }) {
       })}
     </motion.div>
   );
-}
-
-// 集金を知らせるカードを送る（会計の人が送り先を選ぶ。予定の集金は全体LINE、個別の集金は対象の家族に送る想定）
-async function announce(ctx, toast, p) {
-  try {
-    const r = await ctx.actions.share('pay', (url) => payFlex(p.event, p, url), { eventId: payKey(p), targets: payTargets(p, ctx.data) });
-    if (r) toast('集金のお知らせを送りました');
-  } catch (e) { toast('送れませんでした', e.message); }
 }
 
 export function PayAdmin({ ctx }) {
@@ -214,7 +211,7 @@ function PayForm({ ctx, initial, onDone }) {
     try {
       let p;
       if (kind === 'event') {
-        const fields = { description: title.trim(), amount: amount ? Number(amount) : null, baseAmount: feeBase || null, isActive: true };
+        const fields = { description: title.trim(), amount: amount ? Number(amount) : null, baseAmount: feeBase || null, isActive: true, ...(ctx.data.payments.some((x) => x.id === event.id) ? {} : { needsConfirm: true }) };
         await ctx.actions.savePayment(event.id, fields, ctx.myName);
         p = { ...fields, id: event.id, eventId: event.id, event };
       } else {

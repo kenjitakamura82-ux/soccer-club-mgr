@@ -43,6 +43,12 @@ export default async function handler(req, res) {
   if (!studentId) return res.status(400).json({ error: 'お子さんが登録されていません' });
   if (!p?.isActive || !(p.amount > 0) || (!custom && !e)) return res.status(400).json({ error: 'この集金はカードで払えません' });
 
+  // 予定の集金：中止の予定は払えない。開催決定を待つ設定（needsConfirm）の集金は、決まるまで払えない（src/liff/util.js の isCanceled と同じ決め方）
+  if (!custom) {
+    if (e.title?.includes('中止') || e.title?.includes('休み')) return res.status(403).json({ error: 'この予定は中止になりました' });
+    if (p.needsConfirm && e.confirmed !== true) return res.status(403).json({ error: 'まだ開催が決まっていません。決まってから払えます' });
+  }
+
   // 払う対象か（src/liff/util.js の payTargets と同じ決め方）。個別の集金は指定された子、予定の集金は「参加」の子で、選抜ありなら選ばれた子だけ
   if (custom) {
     if (!(p.targets || []).includes(studentId)) return res.status(403).json({ error: 'この集金の対象ではありません' });

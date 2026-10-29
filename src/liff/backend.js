@@ -124,6 +124,10 @@ export const actions = {
     return id;
   },
 
+  // 開催決定。決まるまで、予定の集金は払えない（needsConfirm の付いた集金のみ）
+  confirmEvent: (eventId) =>
+    setDoc(pubDoc('events', eventId), { confirmed: true, confirmedAt: now(), confirmedBy: me?.displayName || '' }, { merge: true }),
+
   async parseEvents(text) {
     const res = await fetch('/api/parse-event', {
       method: 'POST',
@@ -216,8 +220,8 @@ export const actions = {
 
   // 集金の設定。既存アプリ（src/App.jsx の savePaymentDoc）と同じ形で payments/{予定のID} に入れる
   // baseAmount は手数料込みにする前の金額（込みでなければ null）。保護者の画面で内訳と Stripe の手数料の説明を出すのに使う
-  savePayment: (eventId, { description, amount, isActive, baseAmount = null }, by) =>
-    setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, baseAmount, isActive, setBy: by, updatedAt: now() }, { merge: true }),
+  savePayment: (eventId, { description, amount, isActive, baseAmount = null, needsConfirm }, by) =>
+    setDoc(pubDoc('payments', eventId), { eventId, description, amount: amount ? Number(amount) : null, baseAmount, isActive, setBy: by, updatedAt: now(), ...(needsConfirm ? { needsConfirm: true } : {}) }, { merge: true }),
 
   // カード払い（Stripe）。サーバーが支払い画面を作るので、そこへ移る。払い終わると LINE版に ?paid=1 で戻ってくる
   async startCardPay(eventId) {
