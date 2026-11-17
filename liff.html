@@ -7,6 +7,10 @@
     <meta name="theme-color" content="#059669" />
     <title>まちサカ 出欠・配車</title>
     <style>html, body { overscroll-behavior-y: none; }</style>
+    <script>
+      // 2026-11-18 から LINE版はミニアプリ（Cloudflare）に移った。前のURL（Vercel）から開いた人は新しいほうへ送る
+      if (location.hostname.endsWith('vercel.app')) location.replace('https://miniapp.line.me/2012630485-7Ct1IyxS' + location.search.replace(/[?&]liff\.[^&]*/g, '').replace(/^&/, '?'));
+    </script>
     <script type="module" crossorigin src="/soccer-club-mgr/assets/liff-BooL5Oyr.js"></script>
     <link rel="modulepreload" crossorigin href="/soccer-club-mgr/assets/chunk-Dy9vhvp_.js">
     <link rel="modulepreload" crossorigin href="/soccer-club-mgr/assets/jsx-runtime-CgGJ3vW2.js">
